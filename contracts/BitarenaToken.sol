@@ -1,0 +1,760 @@
+// SPDX-License-Identifier: MIT
+// Compatible with OpenZeppelin Contracts ^5.0.0
+
+// https://github.com/OpenZeppelin/openzeppelin-contracts/issues/2580
+// https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json
+pragma solidity 0.8.24;
+
+// #region ➤ 📦 Package Imports
+
+import "hardhat/console.sol";
+
+// ╭─────
+// │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@openzeppelin/contracts-upgradeable
+// ╰─────
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
+// ╭─────
+// │ NOTE: WARNING: IMPORTANT
+// │ ➤ UniswapV1 should NO LONGER BE USED! Updated to UniswapV2.
+// │ ➤ UniswapV2 should NO LONGER BE USED! Updated to UniswapV3 (latest).
+// ┣─────
+// │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@uniswap/v2-periphery
+// │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@uniswap/v2-core
+// ╰─────
+// import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+// import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+// import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
+// ╭─────
+// │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@uniswap/v3-periphery || https://github.com/Uniswap/v3-periphery
+// │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@uniswap/v3-core || https://github.com/Uniswap/v3-core/tree/main
+// ╰─────
+// import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+// import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
+
+// #endregion ➤ 📦 Package Imports
+
+/// @title BitarenaToken Contact
+/// @author MigBash
+/// @custom:security-contact bitarena@gmail.com
+contract BitarenaToken is
+  Initializable,
+  ERC20Upgradeable,
+  ERC20BurnableUpgradeable,
+  ERC20PausableUpgradeable,
+  OwnableUpgradeable,
+  ERC20PermitUpgradeable,
+  UUPSUpgradeable
+{
+
+  // #region ➤ 📌 VARIABLES
+
+  /// @notice
+  ///   📝 ERC-20 Token initial supply
+  uint256 public constant SUPPLY_TOTAL = 21000000;
+  /// @notice
+  ///   📝 Buy Fee, expressed in dollars ($) as 0.0 (1dp)
+  uint256 public numBuyFee;
+  /// @notice
+  ///   📝 Sell Fee, expressed in dollars ($) as 0.0 (1dp)
+  uint256 public numSellFee;
+  /// @notice
+  ///   📝 AntiWhale Fee, expressed as a percentage (%) as 0.0 (1dp)
+  uint256 public numMaxTransactionAmount;
+  /// @notice
+  ///   📝 Circulating Supply of BTA Token
+  uint256 public numCirculatingSupply;
+  /// @notice
+  ///   📝 Main BTA liquidity address (usdt)
+  address public adrBtaUsdtPool;
+  /// @notice
+  ///   📝 Address of the PancakeSwap Permit2
+  address public adrPancakeSwapPermit2;
+  /// @notice
+  ///   📝 Address of the Fee Deposit
+  address public adrFeeDeposit;
+  /// @notice
+  ///   📝 Mapping of Official Bitarena Addresses that are Excluded from Fee
+  mapping (address => bool) private mapAddressExcluded;
+  /// @notice
+  ///   📝 Mapping of Official Bitarena Addresses of (V3) Liquidity Pools
+  mapping (address => bool) private mapAddressV3Pool;
+
+  address public adrFoundingTeam;
+  address public adrAdvisoryBoard;
+  address public adrInvestors;
+  address public adrTeam;
+  address public adrParticipants;
+  address public adrMarketing;
+  address public adrLiquidity;
+  address public adrReserve;
+
+  // #endregion ➤ 📌 VARIABLES
+
+  // #region ➤ 📣 EVENTS
+
+  event DebugAmount (uint256 amount);
+  event DebugAddress (address indexed account);
+  event DebugTransaction (address indexed sender, address indexed recipient, uint256 amount, address indexed msgSender);
+  event DebugTransactionStandard (address indexed sender, address indexed recipient, uint256 amount);
+  event DebugTransactionBuy (address indexed sender, address indexed recipient, uint256 amount, uint256 buyFeeAmount);
+  event DebugTransactionSell (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
+
+  error ErrorGeneric(uint256 value, string message);
+
+  // #endregion ➤ 📣 EVENTS
+
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor()
+  {
+    _disableInitializers();
+  }
+
+  // #region ➤ 🛠️ METHODS
+
+  // ╭──────────────────────────────────────────────────────────────────────────────────╮
+  // │ 💠 │ MISCELLENOUS                                                                │
+  // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+  /// @notice
+  ///   📝 THIS contract keeps all ETHER sent to it, with no way to get it back.
+  ///   |: Necessary method to recieve ETH from uniswap when making a swap.
+  receive() external payable {}
+
+  /// @notice
+  ///   📝 [fallback] executed on a call to the contract if none of the other
+  ///   |: functions match the given function signature, or if no data is supplied at all
+  fallback() external payable {}
+
+  // ╭──────────────────────────────────────────────────────────────────────────────────╮
+  // │ 🟦 │ ERC-20 IMPORTANT // CRITICAL                                                │
+  // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+  /// @notice
+  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
+  ///   |: Initialize the contract
+  /// @param _name { string }
+  ///   💠 name of the token
+  /// @param _symbol { string }
+  ///   💠 symbol of the token
+  /// @param _adrFeeAddress { address }
+  ///   💠 address of the fee address deposit
+  /// @param _adrFoundingTeam { address }
+  ///   💠 address of the founding team
+  /// @param _adrAdvisoryBoard { address }
+  ///   💠 address of the advisory board
+  /// @param _adrInvestors { address }
+  ///   💠 address of the investors
+  /// @param _adrTeam { address }
+  ///   💠 address of the team
+  /// @param _adrParticipants { address }
+  ///   💠 address of the participants
+  /// @param _adrMarketing { address }
+  ///   💠 address of the marketing
+  /// @param _adrLiquidity { address }
+  ///   💠 address of the liquidity
+  /// @param _adrReserve { address }
+  ///   💠 address of the reserve
+  /// @param _adrPancakeSwapPermit2 { address }
+  ///   💠 address of the PancakeSwap Permit2
+  function initialize
+  (
+    string memory _name,
+    string memory _symbol,
+    address _adrFeeAddress,
+    address _adrFoundingTeam,
+    address _adrAdvisoryBoard,
+    address _adrInvestors,
+    address _adrTeam,
+    address _adrParticipants,
+    address _adrMarketing,
+    address _adrLiquidity,
+    address _adrReserve,
+    address _adrPancakeSwapPermit2
+  )
+  public
+  initializer
+  {
+    adrFeeDeposit       = _adrFeeAddress;
+    adrFoundingTeam     = _adrFoundingTeam;
+    adrAdvisoryBoard    = _adrAdvisoryBoard;
+    adrInvestors        = _adrInvestors;
+    adrTeam             = _adrTeam;
+    adrParticipants     = _adrParticipants;
+    adrMarketing        = _adrMarketing;
+    adrLiquidity        = _adrLiquidity;
+    adrReserve          = _adrReserve;
+    adrPancakeSwapPermit2 = _adrPancakeSwapPermit2;
+
+    // [🐞]
+    // solhint-disable no-console
+    console.log(unicode"🚏 [checkpoint] :: initialize(..)");
+    console.log(unicode"🔹 [var] _adrFoundingTeam :: %s", _adrFoundingTeam);
+    console.log(unicode"🔹 [var] _adrAdvisoryBoard :: %s", _adrAdvisoryBoard);
+    console.log(unicode"🔹 [var] _adrInvestors :: %s", _adrInvestors);
+    console.log(unicode"🔹 [var] _adrTeam :: %s", _adrTeam);
+    console.log(unicode"🔹 [var] _adrParticipants :: %s", _adrParticipants);
+    console.log(unicode"🔹 [var] _adrMarketing :: %s", _adrMarketing);
+    console.log(unicode"🔹 [var] _adrLiquidity :: %s", _adrLiquidity);
+    console.log(unicode"🔹 [var] _adrReserve :: %s", _adrReserve);
+    console.log(unicode"🔹 [var] _adrPancakeSwapPermit2 :: %s", _adrPancakeSwapPermit2);
+    console.log(unicode"🔹 [var] address(this) :: %s", address(this));
+    // solhint-enable no-console
+
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🟥 │ OPENZEPPELIN (V5) INITIALIZERS                                              │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+    __ERC20_init(_name, _symbol);
+    __ERC20Burnable_init();
+    __ERC20Pausable_init();
+    __Ownable_init(msg.sender);
+    __ERC20Permit_init(_name);
+    __UUPSUpgradeable_init();
+
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🟥 │ MAIN INTIALIZER LOGIC                                                       │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+    uint256 _onePercent = calcOnePercentOfTotalSupply();
+
+    _mint(adrFoundingTeam,  (_onePercent * 5));
+    _mint(adrAdvisoryBoard, (_onePercent * 2));
+    _mint(adrInvestors,     (_onePercent * 4));
+    _mint(adrTeam,          (_onePercent * 5));
+    _mint(adrParticipants,  (_onePercent * 10));
+    _mint(adrMarketing,     (_onePercent * 10));
+    _mint(adrLiquidity,     (_onePercent * 60));
+    _mint(adrReserve,       (_onePercent * 4));
+
+    // Causes Error:
+    // ProviderError: Error: VM Exception while processing transaction: reverted with panic code 0x11 (Arithmetic operation overflowed outside of an unchecked block)
+    updateCirculatingSupply();
+
+    mapAddressExcluded[owner()]          = true;
+    mapAddressExcluded[address(this)]    = true;
+    mapAddressExcluded[adrFoundingTeam]  = true;
+    mapAddressExcluded[adrAdvisoryBoard] = true;
+    mapAddressExcluded[adrInvestors]     = true;
+    mapAddressExcluded[adrTeam]          = true;
+    mapAddressExcluded[adrParticipants]  = true;
+    mapAddressExcluded[adrMarketing]     = true;
+    mapAddressExcluded[adrLiquidity]     = true;
+    mapAddressExcluded[adrReserve]       = true;
+
+    numBuyFee  = 100;
+    numSellFee = 50;
+    numMaxTransactionAmount = 100;
+
+    return;
+  }
+
+  /// @notice
+  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
+  ///   |: pauses the contract
+  function pause()
+  public
+  onlyOwner
+  {
+    _pause();
+  }
+
+  /// @notice
+  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
+  ///   |: unpauses the contract
+  function unpause()
+  public
+  onlyOwner
+  {
+    _unpause();
+  }
+
+  /// @notice
+  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
+  ///   |: mints new tokens
+  function mint
+  (
+    address to,
+    uint256 amount
+  )
+  public
+  onlyOwner
+  {
+    _mint(to, amount);
+  }
+
+  /// @notice
+  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
+  ///   |: upgrades the contract
+  function _authorizeUpgrade
+  (
+    address newImplementation
+  )
+  internal
+  onlyOwner
+  override
+  {
+    // solhint-disable-line no-empty-blocks
+  }
+
+  /// @notice
+  /// 📝 IMPORTANT ERC-20 (Openzeppelin v.5)
+  /// |: updates (trigger) for the contract
+  /// 🔗 read-more |:| https://forum.openzeppelin.com/t/where-this-beforetokentransfer-function-come-from-on-erc1155-contract/36888/3
+  /// 🔗 read-more |:| https://forum.openzeppelin.com/t/why-have-the-beforetokentransfer-and-aftertokentransfer-functions-been-removed-in-the-erc721-standard-in-v5/38427
+  /// 🔗 read-more |:| https://forum.openzeppelin.com/t/erc721upgradable-v5-0-breaking-changes-for-beforetokentransfer-migrating-to-update/38724/3
+  /// 🔗 read-more |:| https://forum.openzeppelin.com/t/how-to-reimplement-beforetokentransfer-after-removed/38781/2
+  /// 🔗 read-more |:| https://stackoverflow.com/questions/77201832/erc1155-function-has-override-specified-but-does-not-override-anything
+  /// 🔗 read-more |:| https://ethereum.stackexchange.com/questions/156770/trying-to-create-a-soulbound-token-keep-getting-two-errors
+  /// @custom:oz The following functions are overrides required by Solidity.
+  function _update
+  (
+    address from,
+    address to,
+    uint256 value
+  )
+  internal override
+  (
+    ERC20Upgradeable,
+    ERC20PausableUpgradeable
+  )
+  {
+    // [🐞]
+    // solhint-disable no-console
+    console.log(unicode"🚏 [checkpoint] :: _update(..)");
+    console.log(unicode"🔹 [var] sender :: %s", from);
+    console.log(unicode"🔹 [var] recipient :: %s", to);
+    console.log(unicode"🔹 [var] amount :: %s", value);
+    console.log(unicode"🔹 [var] msg.sender :: %s", msg.sender);
+    // solhint-enable no-console
+
+    // [🔘]
+    emit DebugTransaction(from, to, value, msg.sender);
+
+    // ╭─────
+    // │ NOTE: |:| put code to run **BEFORE** the transfer HERE
+    // ╰─────
+    // customTransfer(from, to, value);
+
+    uint256 _value = transferBuySellTakeFees(from, to, value);
+
+    super._update(from, to, _value);
+
+    // ╭─────
+    // │ NOTE: |:| put code to run **AFTER** the transfer HERE
+    // ╰─────
+
+    updateCirculatingSupply();
+
+    return;
+  }
+
+  // ╭──────────────────────────────────────────────────────────────────────────────────╮
+  // │ 🟥 │ CUSTOM METHODS                                                              │
+  // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+  /// @notice
+  ///   📝 (override) ERC20 _transfer(..) logic in order to align with BAT tokenomics.
+  /// @param sender { address }
+  ///   💠 address of the sender
+  /// @param recipient { address }
+  ///   💠 address of the recipient
+  /// @param amount { uint256 }
+  ///   💠 amount of tokens to transfer
+  /// @return { uint256 }
+  ///   📤 amount of tokens to transfer
+  function transferBuySellTakeFees
+  (
+    address sender,
+    address recipient,
+    uint256 amount
+  )
+  internal
+  returns (uint256)
+  {
+    // [🐞]
+    // solhint-disable no-console
+    console.log(unicode"🚏 [checkpoint] :: transferBuySellTakeFees(..)");
+    console.log(unicode"🔹 [var] sender :: %s", sender);
+    console.log(unicode"🔹 [var] recipient :: %s", recipient);
+    console.log(unicode"🔹 [var] amount :: %s", amount);
+    // solhint-enable no-console
+
+    /// @notice 📝 amount of tokens to send
+    /// @custom:note IF NOT MODIFIED, full ammount is transfered (no fees taken)
+    uint256 sendAmount = amount;
+
+    bool isUniswapV3PoolSender = isUniswapV3Pool(sender);
+    bool isUniswapV3PoolRecipient = isUniswapV3Pool(recipient);
+
+    // ╭─────
+    // │ CHECK |: Preliminary check (exit)
+    // ┣─────
+    // │ 1. Check for valid Uniswap V3 Pool
+    // │ 2. Check if address is excluded
+    // │ 3. Check if address is 0x0 (void)
+    // ╰─────
+    if
+    (
+      (
+        !isUniswapV3PoolSender
+        && !isUniswapV3PoolRecipient
+      )
+      ||
+      (
+        isExcludedAddress(sender)
+        || isExcludedAddress(recipient)
+      )
+      ||
+      (
+        sender == address(0)
+        || recipient == address(0)
+      )
+    )
+    {
+      // [🔘]
+      emit DebugTransactionStandard(sender, recipient, amount);
+
+      // [🐞]
+      // solhint-disable-next-line
+      console.log(unicode"🚏 [checkpoint] :: Not Valid Fee Transaction Deduction");
+
+      return sendAmount;
+    }
+
+    // ╭─────
+    // │ CHECK |:
+    // │ Origin Address of UniSwapV3Pool, as only one of the two addresses
+    // │ (sender/recipient) can be a UniswapV3Pool at any given time,
+    // │ wether a buy or sell action is being executed.
+    // ╰─────
+    uint8 originAddressIsUniswapV3 = isUniswapV3PoolSender ? 1 : 0;
+
+    // ╭─────
+    // │ CHECK |: Buy-Action
+    // ┣─────
+    // │ 1. 'PancakeV3Pool' = is 'msg.sender'
+    // │ 2. 'PancakeV3Pool' = is 'sender/from'
+    // │ 3. 'user'          = is 'recipient/to'
+    // ╰─────
+    if
+    (
+      msg.sender == sender
+      && originAddressIsUniswapV3 == 1
+      // ╭─────
+      // │ NOTE: |:| apply fees only if 'numBuyFee' is set to (not) != 0;
+      // ╰─────
+      && numBuyFee != 0
+    )
+    {
+      // [🔘]
+      emit DebugTransactionBuy(sender, recipient, amount, numBuyFee);
+
+      uint256 buyFeeAmount;
+      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
+
+      unchecked
+      {
+        buyFeeAmount = calculateBitarenaFee(numBuyFee, priceBtaFor1Usd);
+        sendAmount = amount - buyFeeAmount;
+        require(amount == sendAmount + buyFeeAmount, "BTA :: transferBuySellTakeFees(..) :: Buy value is invalid");
+      }
+
+      // [🐞]
+      // solhint-disable-next-line
+      console.log(unicode"🚏 [checkpoint] :: Buy Executed");
+
+      super._update(sender, adrFeeDeposit, buyFeeAmount);
+    }
+
+    // ╭─────
+    // │ CHECK |: Sell-Action (with 'anti-whale' protection mechanism)
+    // ┣─────
+    // │ 1. 'Permit2'       = is 'msg.sender'
+    // │ 2. 'user'          = is 'sender/from'
+    // │ 3. 'PancakeV3Pool' = is 'recipient/to'
+    // ╰─────
+    if
+    (
+      msg.sender == adrPancakeSwapPermit2
+      && originAddressIsUniswapV3 == 0
+      // ╭─────
+      // │ NOTE: |:| apply fees only if 'numSellFee' is set to (not) != 0;
+      // ╰─────
+      && numSellFee != 0
+    )
+    {
+      // [🔘]
+      emit DebugTransactionSell(sender, recipient, amount, numSellFee);
+
+      if (sendAmount > ((numCirculatingSupply * numMaxTransactionAmount) / 100)) revert ErrorGeneric(sendAmount, "BTA :: Sell amount exceeds anti-whale threshold");
+
+      uint256 sellFeeAmount;
+      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
+
+      unchecked
+      {
+        sellFeeAmount = calculateBitarenaFee(numSellFee, priceBtaFor1Usd);
+      }
+
+      // [🐞]
+      // solhint-disable-next-line
+      console.log(unicode"🚏 [checkpoint] :: Sell Executed");
+
+      // 104% of the sellFeeAmount is sent to the fee deposit address
+      super._update(sender, adrFeeDeposit, sellFeeAmount);
+    }
+
+    return sendAmount;
+  }
+
+  /// @notice
+  ///   📝 calculates 1% of total supply of BTA Token
+  /// @return { uint256 }
+  ///   📤 1% of total (initial) supply
+  function calcOnePercentOfTotalSupply()
+  public view
+  returns (uint256)
+  {
+    return (SUPPLY_TOTAL * 10**decimals()) * 1 / 100;
+  }
+
+  /// @notice
+  ///   📝 updates the circulating supply value of BTA Token
+  ///   |: based on the current balance of the non-circulating addresses
+  function updateCirculatingSupply()
+  private
+  {
+    if (totalSupply() == 0)
+    {
+      numCirculatingSupply = 0;
+      return;
+    }
+
+    console.log(unicode"🔹 [var] numCirculatingSupply :: %s", numCirculatingSupply);
+    console.log(unicode"🔹 [var] totalSupply() :: %s", totalSupply());
+
+    uint256 numNonCirculatingSupply = 0;
+    uint256 numTotalSupply = totalSupply();
+
+    // ╭─────
+    // │ CHECK: |:| for same wallet address (used in testing)
+    // ╰─────
+    if (adrFoundingTeam == adrAdvisoryBoard)
+    {
+      numNonCirculatingSupply += balanceOf(adrFoundingTeam);
+    }
+    else
+    {
+      numNonCirculatingSupply += balanceOf(adrFoundingTeam);
+      numNonCirculatingSupply += balanceOf(adrAdvisoryBoard);
+      numNonCirculatingSupply += balanceOf(adrInvestors);
+      numNonCirculatingSupply += balanceOf(adrTeam);
+      numNonCirculatingSupply += balanceOf(adrParticipants);
+      numNonCirculatingSupply += balanceOf(adrMarketing);
+      numNonCirculatingSupply += balanceOf(adrLiquidity);
+      numNonCirculatingSupply += balanceOf(adrReserve);
+    }
+
+    if (numTotalSupply < numNonCirculatingSupply)
+    {
+      numCirculatingSupply = 0;
+    }
+    else
+    {
+      numCirculatingSupply = numTotalSupply - numNonCirculatingSupply;
+    }
+
+    console.log(unicode"🔹 [var] numNonCirculatingSupply :: %s", numNonCirculatingSupply);
+    console.log(unicode"🔹 [var] numCirculatingSupply :: %s", numCirculatingSupply);
+
+    return;
+  }
+
+  /// @notice
+  ///   📝 checks if address is excluded
+  /// @param account { address }
+  ///   💠 address to check
+  /// @return { bool }
+  ///   📤 'true' IF address is excluded from fee
+  function isExcludedAddress
+  (
+    address account
+  )
+  public view
+  returns (bool)
+  {
+    return mapAddressExcluded[account];
+  }
+
+  /// @notice
+  ///   📝 checks if address is a Uniswap V3 Pool
+  /// @param account { address }
+  ///   💠 address to check
+  /// @return { bool }
+  ///   📤 'true' IF address is a Uniswap V3 Pool
+  function isUniswapV3Pool
+  (
+    address account
+  )
+  public view
+  returns (bool)
+  {
+    return mapAddressV3Pool[account];
+  }
+
+  /// @notice
+  ///   📝 calculates USD token price from main UniswapV3Pool
+  /// @param _adrBtaUsdtPool { address }
+  ///   💠 address of the main Uniswap V3 Pool
+  /// @return { uint256 }
+  ///   📤 price of BTA token in USD
+  function calculateBitarenaPriceInStableCoinV2
+  (
+    address _adrBtaUsdtPool
+  )
+  public view
+  returns
+  (
+    uint256
+  )
+  {
+    (uint160 sqrtPriceX96, , , , , , ) = IPancakeV3Pool(_adrBtaUsdtPool).slot0();
+    uint256 sqrtPriceX96Pow = uint256(sqrtPriceX96 * 10**12);
+    uint256 priceFromSqrtX96 = sqrtPriceX96Pow / 2**96;
+    priceFromSqrtX96 = priceFromSqrtX96**2;
+    return priceFromSqrtX96 / 1000000;
+  }
+
+  /// @notice
+  ///   📝 calculate fee amount in BTA
+  /// @param price { uint256 }
+  ///   💠 amount to calculate fee for
+  /// @param fee { uint256 }
+  ///   💠 fee to be used for calculation
+  /// @return { uint256 }
+  ///   📤 fee amount in BTA
+  function calculateBitarenaFee
+  (
+    uint256 fee,
+    uint256 price
+  )
+  public pure
+  returns
+  (
+    uint256
+  )
+  {
+    return (fee * price) / 100;
+  }
+
+  // #endregion ➤ 🛠️ METHODS
+
+  // #region ➤ 🛠️ GETTER/SETTER
+
+  /// @notice
+  ///  📝 SET |: address for EXCLUSION from fee
+  /// @param account { address }
+  ///   💠 address of the account to exclude
+  /// @param isExcluded { bool }
+  ///   💠 'true' to exclude, 'false' to include
+  function setToggleExcludeAddressFromFee
+  (
+    address account,
+    bool isExcluded
+  )
+  external
+  onlyOwner
+  {
+    mapAddressExcluded[account] = isExcluded;
+    return;
+  }
+
+  /// @notice
+  ///  📝 SET |: address for new UniswapV3Pool created
+  /// @param account { address }
+  ///   💠 address of the Uniswap V3 Pool Created
+  function setUniswapV3Pool
+  (
+    address account
+  )
+  external
+  onlyOwner
+  {
+    mapAddressV3Pool[account] = true;
+    return;
+  }
+
+  /// @notice
+  ///  📝 SET |: address for Main Uniswap Fiat (pool) created
+  /// @param account { address }
+  ///   💠 address of the Uniswap V3 Pool Created
+  function setMainLiquidtyPool
+  (
+    address account
+  )
+  external
+  onlyOwner
+  {
+    adrBtaUsdtPool = account;
+    return;
+  }
+
+  /// @notice
+  ///  📝 SET |: anti whale fee threshold calculation.
+  /// @param _supplyPercentage { uint256 }
+  ///   💠 thre
+  function setAntiWhaleCirculationThresholdFee
+  (
+    uint256 _supplyPercentage
+  )
+  external
+  onlyOwner
+  {
+    if (_supplyPercentage <= 20) revert ErrorGeneric(_supplyPercentage, "BTA :: anti-whale threshold cannot be lower than 0.2%");
+    numMaxTransactionAmount = _supplyPercentage;
+    return;
+  }
+
+  /// @notice
+  ///  📝 SET |: buy fee
+  /// @param fee { uint256 }
+  ///   💠 buy fee expressed as USD (fiat)
+  function setBuyFee
+  (
+    uint256 fee
+  )
+  external
+  onlyOwner
+  {
+    if (fee <= 0 || fee >= 250) revert ErrorGeneric(fee, "BTA :: buy fee cannot be lower than 0 or higher than 2.5 USD (=250)");
+    numBuyFee = fee;
+    return;
+  }
+
+  /// @notice
+  ///  📝 SET |: sell fee
+  /// @param fee { uint256 }
+  ///   💠 sell fee expressed as USD (fiat)
+  function setSellFee
+  (
+    uint256 fee
+  )
+  external
+  onlyOwner
+  {
+    if (fee <= 0 || fee >= 250) revert ErrorGeneric(fee, "BTA :: sell fee cannot be lower than 0 or higher than 2.5 USD (=250)");
+    numSellFee = fee;
+    return;
+  }
+
+  // #endregion ➤ 🛠️ GETTER/SETTER
+
+}
