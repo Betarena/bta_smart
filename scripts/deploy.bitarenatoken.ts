@@ -18,7 +18,7 @@ import { ethernal, ethers, network, upgrades } from 'hardhat';
 import fs from 'fs-extra';
 import { table } from "table";
 
-import { ENV_DEPLOY_TARGET, ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET, ENV_NETWORK_TARGET, identifyEnvironment } from '../constant/instance';
+import { ENV_DEPLOY_TARGET, ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET, ENV_NETWORK_TARGET, identifyEnvironment } from '../constant/instance.bitarenatoken';
 
 // #endregion ➤ 📦 Package Imports
 
