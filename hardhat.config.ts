@@ -23,6 +23,7 @@ import 'hardhat-abi-exporter';
 import "hardhat-gas-reporter";
 import { type HardhatUserConfig } from "hardhat/config";
 
+import './hardhat/tasks';
 import { API_KEY_ALCHEMY, API_KEY_ARBISCAN, API_KEY_BASESCAN, API_KEY_BSCSCAN, API_KEY_ETHERSCAN, API_KEY_OPBNBSCAN, API_KEY_POLYGONSCAN, DEFNDER_API_KEY, DEFNDER_API_SECRET, ENV_NETWORK_HARDHAT_FORK_TARGET, ETHERNAL_API_KEY, OWNER_ADDRESS, OWNER_MNEMONIC, REPORT_GAS } from './constant/instance';
 
 // #endregion ➤ 📦 Package Imports
