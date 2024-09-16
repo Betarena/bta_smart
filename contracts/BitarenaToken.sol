@@ -235,7 +235,7 @@ contract BitarenaToken is
     __ERC20_init(_name, _symbol);
     __ERC20Burnable_init();
     __ERC20Pausable_init();
-    __Ownable2Step_init();
+    __Ownable_init(msg.sender);
     __ERC20Permit_init(_name);
     __UUPSUpgradeable_init();
     __ReentrancyGuard_init();
