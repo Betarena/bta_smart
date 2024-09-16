@@ -15,10 +15,11 @@ import "hardhat/console.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 // ╭─────
 // │ NOTE: WARNING: IMPORTANT
@@ -49,13 +50,17 @@ contract BitarenaToken is
   ERC20Upgradeable,
   ERC20BurnableUpgradeable,
   ERC20PausableUpgradeable,
-  OwnableUpgradeable,
+  Ownable2StepUpgradeable,
   ERC20PermitUpgradeable,
-  UUPSUpgradeable
+  UUPSUpgradeable,
+  ReentrancyGuardUpgradeable
 {
 
   // #region ➤ 📌 VARIABLES
 
+  /// @notice
+  ///   📝 Locked amount of ETH
+  uint256 public lockedAmount;
   /// @notice
   ///   📝 ERC-20 Token initial supply
   uint256 public constant SUPPLY_TOTAL = 21000000;
@@ -126,12 +131,27 @@ contract BitarenaToken is
   /// @notice
   ///   📝 THIS contract keeps all ETHER sent to it, with no way to get it back.
   ///   |: Necessary method to recieve ETH from uniswap when making a swap.
-  receive() external payable {}
+  receive() external payable
+  {
+    lockedAmount += msg.value;
+    return;
+  }
 
   /// @notice
   ///   📝 [fallback] executed on a call to the contract if none of the other
   ///   |: functions match the given function signature, or if no data is supplied at all
   fallback() external payable {}
+
+  /// @notice
+  ///   📝 withdraws the locked amount of ETH
+  function withdraw()
+  public
+  onlyOwner()
+  {
+    address payable recipient = payable(owner());
+    recipient.transfer(address(this).balance);
+    return;
+  }
 
   // ╭──────────────────────────────────────────────────────────────────────────────────╮
   // │ 🟦 │ ERC-20 IMPORTANT // CRITICAL                                                │
@@ -215,9 +235,10 @@ contract BitarenaToken is
     __ERC20_init(_name, _symbol);
     __ERC20Burnable_init();
     __ERC20Pausable_init();
-    __Ownable_init(msg.sender);
+    __Ownable2Step_init();
     __ERC20Permit_init(_name);
     __UUPSUpgradeable_init();
+    __ReentrancyGuard_init();
 
     // ╭──────────────────────────────────────────────────────────────────────────────────╮
     // │ 🟥 │ MAIN INTIALIZER LOGIC                                                       │
@@ -620,7 +641,8 @@ contract BitarenaToken is
   (
     address _adrBtaUsdtPool
   )
-  public view
+  public
+  nonReentrant
   returns
   (
     uint256
