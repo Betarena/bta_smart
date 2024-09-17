@@ -460,26 +460,36 @@ const config: HardhatUserConfig =
   {
     apiKey:
     {
-      // [L1] (ETH) Ethereum
+      // Layer-1 :: (ETH) Ethereum
       mainnet: API_KEY_ETHERSCAN,
       sepolia: API_KEY_ETHERSCAN,
-      // [L2] (ETH) Polygon
+      // Layer-2 :: (ETH) Polygon
       polygon: API_KEY_POLYGONSCAN,
-      // [L2] (ETH) Arbitrum
+      polygonAmoy: API_KEY_POLYGONSCAN,
+      // Layer-2 :: (ETH) Arbitrum
       arbitrumOne: API_KEY_ARBISCAN,
       arbitrumSepolia: API_KEY_ARBISCAN,
-      // [L2] (ETH) Base
+      // Layer-2 :: (ETH) Base
       base: API_KEY_BASESCAN,
       baseSepolia: API_KEY_BASESCAN,
-      // [L1] (BSC) BinanceSmartChain
+      // Layer-1 :: (BSC) BinanceSmartChain
       bsc: API_KEY_BSCSCAN,
       bscTestnet: API_KEY_BSCSCAN,
-      // [L2] (BSC) opBNB
+      // Layer-2 :: (BSC) opBNB
       opBNB: API_KEY_OPBNBSCAN,
       opBNBTestnet: API_KEY_OPBNBSCAN,
     },
     customChains:
     [
+      {
+        network: "polygonAmoy",
+        chainId: 80002,
+        urls:
+        {
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com",
+        }
+      },
       {
         network: "arbitrumSepolia",
         chainId: 421614,
