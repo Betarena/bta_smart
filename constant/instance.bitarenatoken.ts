@@ -9,22 +9,21 @@
 // ┣──────────────────────────────────────────────────────────────────────────────────┫
 // │ 📝 Description                                                                   │
 // ┣──────────────────────────────────────────────────────────────────────────────────┫
-// │ Betarena (TS.Module) || Bitarena Deployment (Normal)                             │
+// │ Betarena (Module)
+// │ |: Instance (Bitarena) Variables Definitions
 // ╰──────────────────────────────────────────────────────────────────────────────────╯
 
 // #region ➤ 📦 Package Imports
 
-import * as dotenv from 'dotenv';
+import { ENV_DEPLOY_TARGET, ENV_NETWORK_TARGET } from './instance';
 
 // #endregion ➤ 📦 Package Imports
-
-dotenv.config();
 
 interface IEnvironment
 {
   deployment:
   {
-    [key: string]:
+    [key in IEnvrionment]:
     {
       name: string;
       symbol: string;
@@ -34,42 +33,18 @@ interface IEnvironment
   }
   network:
   {
-    [key: string]:
-    {
-      [key: string]:
+    [key in IChain]: Partial <
       {
-        addressUniswapV3Factory?: string;
-        addressMatic?: string;
-        addressPermit2: string;
+        [key in IChainSubNetwork]:
+        {
+          addressUniswapV3Factory?: string;
+          addressMatic?: string;
+          addressPermit2?: string;
+        }
       }
-    }
+    >
   }
 }
-
-export const
-  // ╭─────
-  // │ NOTE: |:| Destructing Environment Variables
-  // ╰─────
-  {
-    REPORT_GAS,
-    DEFNDER_API_KEY,
-    DEFNDER_API_SECRET,
-    API_KEY_ETHERSCAN,
-    API_KEY_POLYGONSCAN,
-    API_KEY_ARBISCAN,
-    API_KEY_BASESCAN,
-    API_KEY_BSCSCAN,
-    API_KEY_OPBNBSCAN,
-    ETHERNAL_API_KEY,
-    OWNER_MNEMONIC,
-    API_KEY_ALCHEMY,
-    OWNER_ADDRESS,
-    ENV_DEPLOY_TARGET,
-    ENV_NETWORK_TARGET,
-    ENV_NETWORK_HARDHAT_FORK_TARGET,
-    ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET
-  } = process.env
-;
 
 /**
  * @author
@@ -83,12 +58,8 @@ export const
  */
 export function identifyEnvironment
 (
-): IEnvironment['deployment'][0] & IEnvironment['network'][0][0]
+): IEnvironment['deployment']['staging'] & IEnvironment['network']['ethereum']['mainnet']
 {
-  // [🐞]
-  console.log(`🔹 [var] ENV_DEPLOY_TARGET ${ENV_DEPLOY_TARGET}`);
-  console.log(`🔹 [var] ENV_NETWORK_TARGET ${ENV_NETWORK_TARGET}`);
-
   const
     /**
      * @description
@@ -247,6 +218,6 @@ export function identifyEnvironment
 
   return {
     ...environmentDeployment[ENV_DEPLOY_TARGET],
-    ...environmentNetwork[_envNetwork[0]][_envNetwork[1]]
+    ...environmentNetwork[_envNetwork[0] as IChain][_envNetwork[1] as IChainSubNetwork]
   };
 }
