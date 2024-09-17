@@ -12,6 +12,13 @@ hardhat-contract-compile:
 	# │ > custom hardhat compile.																			   │
 	# ╰──────────────────────────────────────────────────────────────────╯
 
+	echo -e \
+		"\
+		\n╭──────────────────────────────────────────────────────────────────╮\
+		\n│ ⚙️ Compile contract(s)                                            │\
+		\n╰──────────────────────────────────────────────────────────────────╯"
+	#
+
 	npx hardhat \
 		compile \
 		--force
@@ -48,6 +55,15 @@ hardhat-contract-deploy:
 	# │ > 🔗 read-more :|: https://github.com/nvm-sh/nvm							   │
 	# ╰──────────────────────────────────────────────────────────────────╯
 
+	echo -e \
+		"\
+		\n╭──────────────────────────────────────────────────────────────────╮\
+		\n│ 🟢 Deploy contract                                               │\
+		\n│ $(ENV_CONTRACT_TARGET) \
+		\n│ $(ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET) \
+		\n╰──────────────────────────────────────────────────────────────────╯"
+	#
+
 	dot_clean .
 
 	npx hardhat run \
@@ -71,6 +87,15 @@ hardhat-contract-verify-public-chain:
 		exit 1;\
 		echo "";\
 	fi
+
+	echo -e \
+		"\
+		\n╭──────────────────────────────────────────────────────────────────╮\
+		\n│ 🔍 Verify contract                                               │\
+		\n│ $(address) \
+		\n│ $(ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET) \
+		\n╰──────────────────────────────────────────────────────────────────╯"
+	#
 
 	npx hardhat verify \
 		"$(address)" \
