@@ -12,14 +12,14 @@ import "hardhat/console.sol";
 // ╭─────
 // │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@openzeppelin/contracts-upgradeable
 // ╰─────
-import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+import { ERC20BurnableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
+import { ERC20PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
+import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 // ╭─────
 // │ NOTE: WARNING: IMPORTANT
@@ -38,7 +38,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 // ╰─────
 // import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 // import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
+import { IPancakeV3Pool } from "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
 
 // #endregion ➤ 📦 Package Imports
 
@@ -118,12 +118,20 @@ contract BitarenaToken is
 
   // #region ➤ 📣 EVENTS
 
-  event DebugFunctionRecieved     (address indexed sender, uint256 amount);
+  /// @notice
+  ///   📝 Debugging event for WithdrawETH
   event DebugFunctionWithdrawETH  (address indexed sender, uint256 amount);
-
+  /// @notice
+  ///   📝 Debugging event for Transaction
   event DebugTransaction          (address indexed sender, address indexed recipient, uint256 amount, address indexed msgSender);
+  /// @notice
+  ///   📝 Debugging event for Transaction (Standard)
   event DebugTransactionStandard  (address indexed sender, address indexed recipient, uint256 amount);
+  /// @notice
+  ///   📝 Debugging event for Transaction (Buy)
   event DebugTransactionBuy       (address indexed sender, address indexed recipient, uint256 amount, uint256 buyFeeAmount);
+  /// @notice
+  ///   📝 Debugging event for Transaction (Sell)
   event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
 
   error ErrorGeneric              (uint256 value, string message);
