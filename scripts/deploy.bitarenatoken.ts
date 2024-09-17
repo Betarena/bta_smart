@@ -9,18 +9,28 @@
 // ┣──────────────────────────────────────────────────────────────────────────────────┫
 // │ 📝 Description                                                                   │
 // ┣──────────────────────────────────────────────────────────────────────────────────┫
-// │ Betarena (TS.Module) || Bitarena Deployment (Normal)                             │
+// │ Betarena (Module)
+// │ |: Script Deployment (Bitarena) Definitions
 // ╰──────────────────────────────────────────────────────────────────────────────────╯
 
 // #region ➤ 📦 Package Imports
 
 import { ethernal, ethers, network, upgrades } from 'hardhat';
-import fs from 'fs-extra';
 import { table } from "table";
 
-import { ENV_DEPLOY_TARGET, ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET, ENV_NETWORK_TARGET, identifyEnvironment } from '../constant/instance.bitarenatoken';
+import { identifyEnvironment } from '../constant/instance.bitarenatoken';
+import { ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET } from '../constant/instance';
+import { debug } from '../utils/debug.js';
 
 // #endregion ➤ 📦 Package Imports
+
+const
+  /**
+   * @description
+   * 📝 debug file.
+   */
+  debugFile = './logs/deployment.bitarena.json'
+;
 
 /**
  * @author
@@ -104,64 +114,11 @@ async function main
     );
   ;
 
-  await fs.ensureFile('./logs/deployment.bitarena.json');
-
-  let
-    /**
-     * @description
-     * 📝 debug list.
-     */
-    listDebug = await fs.readJSON('./logs/deployment.bitarena.json') as any
-  ;
-
-  // [🐞]
-  // console.log(listDebug);
-
-  const
-    /**
-     * @description
-     * 📝 debug object.
-     */
-    objNewDebug
-      = {
-        timestamp: new Date().toISOString(),
-        config:
-        {
-          ENV_DEPLOY_TARGET,
-          ENV_NETWORK_TARGET,
-          ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET
-        },
-        network:
-        {
-          name: network?.name,
-          chainId: network.config.chainId,
-          owner: network.config.from ?? '0x0',
-          gasPrice: network.config.gasPrice,
-          gasLimit: network.config.gas,
-          gasMultiplier: network.config.gasMultiplier
-        },
-        contract:
-        {
-          name: 'BitarenaToken',
-          address: CONTRACT_ADDRESS,
-          arguments: ENVIRONMENT_DATA,
-        },
-        comments: []
-      }
-  ;
-
-  listDebug.push(objNewDebug);
-
-  // ╭─────
-  // │ NOTE: IMPORTANT |:| log contract deployment data.
-  // ╰─────
-  await fs.outputFile
+  await debug
   (
-    './logs/deployment.bitarena.json',
-    JSON.stringify(listDebug, null, 2),
-    {
-      flag: 'w'
-    }
+    debugFile,
+    CONTRACT_ADDRESS,
+    ENVIRONMENT_DATA
   );
 
   return;
