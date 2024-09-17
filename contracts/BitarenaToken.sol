@@ -59,9 +59,6 @@ contract BitarenaToken is
   // #region ➤ 📌 VARIABLES
 
   /// @notice
-  ///   📝 Locked amount of ETH
-  uint256 public lockedAmount;
-  /// @notice
   ///   📝 ERC-20 Token initial supply
   uint256 public constant SUPPLY_TOTAL = 21000000;
   /// @notice
@@ -87,32 +84,49 @@ contract BitarenaToken is
   address public adrFeeDeposit;
   /// @notice
   ///   📝 Mapping of Official Bitarena Addresses that are Excluded from Fee
-  mapping (address => bool) private mapAddressExcluded;
+  mapping (address addressExcluded => bool isExcluded) private mapAddressExcluded;
   /// @notice
   ///   📝 Mapping of Official Bitarena Addresses of (V3) Liquidity Pools
-  mapping (address => bool) private mapAddressV3Pool;
+  mapping (address addressV3Pool => bool isPool) private mapAddressV3Pool;
 
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrFoundingTeam;
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrAdvisoryBoard;
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrInvestors;
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrTeam;
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrParticipants;
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrMarketing;
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrLiquidity;
+  /// @notice
+  ///   📝 Address of Official Team
   address public adrReserve;
 
   // #endregion ➤ 📌 VARIABLES
 
   // #region ➤ 📣 EVENTS
 
-  event DebugAmount (uint256 amount);
-  event DebugAddress (address indexed account);
-  event DebugTransaction (address indexed sender, address indexed recipient, uint256 amount, address indexed msgSender);
-  event DebugTransactionStandard (address indexed sender, address indexed recipient, uint256 amount);
-  event DebugTransactionBuy (address indexed sender, address indexed recipient, uint256 amount, uint256 buyFeeAmount);
-  event DebugTransactionSell (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
+  event DebugFunctionRecieved     (address indexed sender, uint256 amount);
+  event DebugFunctionWithdrawETH  (address indexed sender, uint256 amount);
 
-  error ErrorGeneric(uint256 value, string message);
+  event DebugTransaction          (address indexed sender, address indexed recipient, uint256 amount, address indexed msgSender);
+  event DebugTransactionStandard  (address indexed sender, address indexed recipient, uint256 amount);
+  event DebugTransactionBuy       (address indexed sender, address indexed recipient, uint256 amount, uint256 buyFeeAmount);
+  event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
+
+  error ErrorGeneric              (uint256 value, string message);
 
   // #endregion ➤ 📣 EVENTS
 
@@ -131,11 +145,7 @@ contract BitarenaToken is
   /// @notice
   ///   📝 THIS contract keeps all ETHER sent to it, with no way to get it back.
   ///   |: Necessary method to recieve ETH from uniswap when making a swap.
-  receive() external payable
-  {
-    lockedAmount += msg.value;
-    return;
-  }
+  receive() external payable {}
 
   /// @notice
   ///   📝 [fallback] executed on a call to the contract if none of the other
@@ -144,12 +154,18 @@ contract BitarenaToken is
 
   /// @notice
   ///   📝 withdraws the locked amount of ETH
-  function withdraw()
-  public
-  onlyOwner()
+  function withdrawETH()
+  external
+  nonReentrant
+  onlyOwner
   {
+
+    uint256 amount = address(this).balance;
     address payable recipient = payable(owner());
-    recipient.transfer(address(this).balance);
+    (bool success,) = recipient.call{ value: amount }("BTA :: Amount Withdrawn from smart contract");
+    if (!success) revert ErrorGeneric (0, "BTA :: Withdraw transfer failed");
+    // [🔘]
+    emit DebugFunctionWithdrawETH(owner(), amount);
     return;
   }
 
@@ -485,7 +501,7 @@ contract BitarenaToken is
       {
         buyFeeAmount = calculateBitarenaFee(numBuyFee, priceBtaFor1Usd);
         sendAmount = amount - buyFeeAmount;
-        require(amount == sendAmount + buyFeeAmount, "BTA :: transferBuySellTakeFees(..) :: Buy value is invalid");
+        if (amount != (sendAmount + buyFeeAmount)) revert ErrorGeneric(amount, "BTA :: transferBuySellTakeFees(..) :: Buy value is invalid");
       }
 
       // [🐞]
@@ -541,7 +557,7 @@ contract BitarenaToken is
   /// @return { uint256 }
   ///   📤 1% of total (initial) supply
   function calcOnePercentOfTotalSupply()
-  public view
+  private view
   returns (uint256)
   {
     return (SUPPLY_TOTAL * 10**decimals()) * 1 / 100;
@@ -562,7 +578,7 @@ contract BitarenaToken is
     console.log(unicode"🔹 [var] numCirculatingSupply :: %s", numCirculatingSupply);
     console.log(unicode"🔹 [var] totalSupply() :: %s", totalSupply());
 
-    uint256 numNonCirculatingSupply = 0;
+    uint256 numNonCirculatingSupply;
     uint256 numTotalSupply = totalSupply();
 
     // ╭─────
@@ -570,11 +586,11 @@ contract BitarenaToken is
     // ╰─────
     if (adrFoundingTeam == adrAdvisoryBoard)
     {
-      numNonCirculatingSupply += balanceOf(adrFoundingTeam);
+      numNonCirculatingSupply = balanceOf(adrFoundingTeam);
     }
     else
     {
-      numNonCirculatingSupply += balanceOf(adrFoundingTeam);
+      numNonCirculatingSupply = balanceOf(adrFoundingTeam);
       numNonCirculatingSupply += balanceOf(adrAdvisoryBoard);
       numNonCirculatingSupply += balanceOf(adrInvestors);
       numNonCirculatingSupply += balanceOf(adrTeam);
@@ -634,14 +650,14 @@ contract BitarenaToken is
   /// @notice
   ///   📝 calculates USD token price from main UniswapV3Pool
   /// @param _adrBtaUsdtPool { address }
-  ///   💠 address of the main Uniswap V3 Pool
+  ///   💠 address of the main Uniswap/Pancake V3 Pool
   /// @return { uint256 }
   ///   📤 price of BTA token in USD
   function calculateBitarenaPriceInStableCoinV2
   (
     address _adrBtaUsdtPool
   )
-  public
+  private
   nonReentrant
   returns
   (
