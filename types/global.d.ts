@@ -1,3 +1,8 @@
+
+/**
+ * @description
+ * 📝 Network
+ */
 type INetwork =
   | 'polygon_amony'
   | 'polygon_mainnet'
@@ -11,4 +16,37 @@ type INetwork =
   | 'binance_mainnet'
   | 'opbnb_testnet'
   | 'opbnb_mainnet'
+;
+
+/**
+ * @description
+ * 📝 Network
+ */
+type IChain =
+  | 'ethereum'
+  | 'polygon'
+  | 'arbitrum'
+  | 'base'
+  | 'binance'
+  | 'opbnb'
+;
+
+/**
+ * @description
+ * 📝 Network
+ */
+type IChainSubNetwork =
+  | 'amony'
+  | 'mainnet'
+  | 'sepolia'
+  | 'testnet'
+;
+
+/**
+ * @description
+ * 📝 Network
+ */
+type IEnvrionment =
+  | 'staging'
+  | 'production'
 ;
