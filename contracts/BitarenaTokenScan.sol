@@ -17,35 +17,24 @@ contract BitarenaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradea
 
   receive() external payable
   {
-    lockedAmount += msg.value;
-    return;
+    lockedAmount += msg.value; return;
   }
 
-  fallback() external payable {}
+  fallback() external payable { revert("Unsupported function"); }
 
-  function withdraw() public onlyOwner() {
-    address payable recipient = payable(owner());
-    recipient.transfer(address(this).balance);
-    return;
+  function withdrawEther() external onlyOwner {
+    address payable recipient = payable(owner());  recipient.transfer(address(this).balance); return;
   }
 
   function initialize ( string memory _name, string memory _symbol, address _adrFeeAddress, address _adrFoundingTeam, address _adrAdvisoryBoard, address _adrInvestors, address _adrTeam, address _adrParticipants, address _adrMarketing, address _adrLiquidity, address _adrReserve, address _adrPancakeSwapPermit2
-  )
-  public initializer
+  ) public initializer
   {
     adrFeeDeposit       = _adrFeeAddress; adrFoundingTeam     = _adrFoundingTeam; adrAdvisoryBoard    = _adrAdvisoryBoard; adrInvestors        = _adrInvestors; adrTeam             = _adrTeam; adrParticipants     = _adrParticipants; adrMarketing        = _adrMarketing; adrLiquidity        = _adrLiquidity; adrReserve          = _adrReserve; adrPancakeSwapPermit2 = _adrPancakeSwapPermit2;  // [🐞]
-
     __ERC20_init(_name, _symbol); __ERC20Burnable_init(); __ERC20Pausable_init(); __Ownable_init(msg.sender); __ERC20Permit_init(_name); __UUPSUpgradeable_init(); __ReentrancyGuard_init(); uint256 _onePercent = calcOnePercentOfTotalSupply();
     _mint(adrFoundingTeam,  (_onePercent * 5));   _mint(adrAdvisoryBoard, (_onePercent * 2));   _mint(adrInvestors,     (_onePercent * 4));  _mint(adrTeam,          (_onePercent * 5));    _mint(adrParticipants,  (_onePercent * 10));    _mint(adrMarketing,     (_onePercent * 10));    _mint(adrLiquidity,     (_onePercent * 60));    _mint(adrReserve,       (_onePercent * 4));
-
-    // Causes Error:
-    // ProviderError: Error: VM Exception while processing transaction: reverted with panic code 0x11 (Arithmetic operation overflowed outside of an unchecked block)
     updateCirculatingSupply();
-
     mapAddressExcluded[owner()] = true; mapAddressExcluded[address(this)]    = true; mapAddressExcluded[adrFoundingTeam]  = true; mapAddressExcluded[adrAdvisoryBoard] = true; mapAddressExcluded[adrInvestors]     = true; mapAddressExcluded[adrTeam]          = true; mapAddressExcluded[adrParticipants]  = true; mapAddressExcluded[adrMarketing]     = true; mapAddressExcluded[adrLiquidity]     = true; mapAddressExcluded[adrReserve]       = true;
-
     numBuyFee  = 100; numSellFee = 50; numMaxTransactionAmount = 100;
-
     return;
   }
 
@@ -55,30 +44,16 @@ contract BitarenaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradea
   function _authorizeUpgrade (address newImplementation) internal onlyOwner override { /* solhint-disable-line no-empty-blocks */ }
   function _update ( address from, address to, uint256 value ) internal override ( ERC20Upgradeable, ERC20PausableUpgradeable )
   {
-    emit DebugTransaction(from, to, value, msg.sender);
-    uint256 _value = transferBuySellTakeFees(from, to, value);
-    super._update(from, to, _value);
-    updateCirculatingSupply();
-    return;
+    emit DebugTransaction(from, to, value, msg.sender); uint256 _value = transferBuySellTakeFees(from, to, value); super._update(from, to, _value); updateCirculatingSupply(); return;
   }
 
-  function transferBuySellTakeFees
-  (
-    address sender,
-    address recipient,
-    uint256 amount
-  )
-  internal
-  returns (uint256)
+  function transferBuySellTakeFees ( address sender, address recipient, uint256 amount ) internal returns (uint256)
   {
     uint256 sendAmount = amount;
-
     bool isUniswapV3PoolSender = isUniswapV3Pool(sender); bool isUniswapV3PoolRecipient = isUniswapV3Pool(recipient);
-
     if ( (!isUniswapV3PoolSender && !isUniswapV3PoolRecipient) || (isExcludedAddress(sender) || isExcludedAddress(recipient)) || (sender == address(0) || recipient == address(0)))
     {
-      emit DebugTransactionStandard(sender, recipient, amount);
-      return sendAmount;
+      emit DebugTransactionStandard(sender, recipient, amount); return sendAmount;
     }
 
     uint8 originAddressIsUniswapV3 = isUniswapV3PoolSender ? 1 : 0;
@@ -89,32 +64,18 @@ contract BitarenaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradea
       uint256 buyFeeAmount; uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
       unchecked
       {
-        buyFeeAmount = calculateBitarenaFee(numBuyFee, priceBtaFor1Usd);
-        sendAmount = amount - buyFeeAmount;
-        require(amount == sendAmount + buyFeeAmount, "BTA :: transferBuySellTakeFees(..) :: Buy value is invalid");
+        buyFeeAmount = calculateBitarenaFee(numBuyFee, priceBtaFor1Usd); sendAmount = amount - buyFeeAmount; require(amount == sendAmount + buyFeeAmount, "BTA :: transferBuySellTakeFees(..) :: Buy value is invalid");
       }
       super._update(sender, adrFeeDeposit, buyFeeAmount);
     }
 
-    if
-    (
-      msg.sender == adrPancakeSwapPermit2
-      && originAddressIsUniswapV3 == 0
-      && numSellFee != 0
-    )
+    if (msg.sender == adrPancakeSwapPermit2 && originAddressIsUniswapV3 == 0 && numSellFee != 0)
     {
       emit DebugTransactionSell(sender, recipient, amount, numSellFee);
-
       if (sendAmount > ((numCirculatingSupply * numMaxTransactionAmount) / 100)) revert ErrorGeneric(sendAmount, "BTA :: Sell amount exceeds anti-whale threshold");
-
-      uint256 sellFeeAmount;
-      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
-
+      uint256 sellFeeAmount; uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
       unchecked
-      {
-        sellFeeAmount = calculateBitarenaFee(numSellFee, priceBtaFor1Usd);
-      }
-
+      { sellFeeAmount = calculateBitarenaFee(numSellFee, priceBtaFor1Usd); }
       super._update(sender, adrFeeDeposit, sellFeeAmount);
     }
 
@@ -126,22 +87,18 @@ contract BitarenaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradea
   function updateCirculatingSupply() private
   {
     if (totalSupply() == 0) { numCirculatingSupply = 0; return; }
-
     uint256 numNonCirculatingSupply = 0; uint256 numTotalSupply = totalSupply();
-
     if (adrFoundingTeam == adrAdvisoryBoard) { numNonCirculatingSupply += balanceOf(adrFoundingTeam); }
     else { numNonCirculatingSupply += balanceOf(adrFoundingTeam); numNonCirculatingSupply += balanceOf(adrAdvisoryBoard); numNonCirculatingSupply += balanceOf(adrInvestors); numNonCirculatingSupply += balanceOf(adrTeam); numNonCirculatingSupply += balanceOf(adrParticipants); numNonCirculatingSupply += balanceOf(adrMarketing); numNonCirculatingSupply += balanceOf(adrLiquidity); numNonCirculatingSupply += balanceOf(adrReserve);
     }
-
     if (numTotalSupply < numNonCirculatingSupply) { numCirculatingSupply = 0; }
     else { numCirculatingSupply = numTotalSupply - numNonCirculatingSupply; }
-
     return;
   }
 
   function isExcludedAddress ( address account ) public view returns (bool) { return mapAddressExcluded[account]; }
   function isUniswapV3Pool (address account) public view returns (bool) { return mapAddressV3Pool[account]; }
-  function calculateBitarenaPriceInStableCoinV2 ( address _adrBtaUsdtPool ) public nonReentrant returns ( uint256 ) {
+  function calculateBitarenaPriceInStableCoinV2 ( address _adrBtaUsdtPool ) private nonReentrant returns ( uint256 ) {
     (uint160 sqrtPriceX96, , , , , , ) = IPancakeV3Pool(_adrBtaUsdtPool).slot0(); uint256 sqrtPriceX96Pow = uint256(sqrtPriceX96 * 10**12); uint256 priceFromSqrtX96 = sqrtPriceX96Pow / 2**96; priceFromSqrtX96 = priceFromSqrtX96**2;
     return priceFromSqrtX96 / 1000000;
   }
@@ -157,18 +114,14 @@ contract BitarenaToken is Initializable, ERC20Upgradeable, ERC20BurnableUpgradea
     return;
   }
 
-  function setBuyFee ( uint256 fee ) external onlyOwner
-  {
+  function setBuyFee ( uint256 fee ) external onlyOwner {
     if (fee <= 0 || fee >= 250) revert ErrorGeneric(fee, "BTA :: buy fee cannot be lower than 0 or higher than 2.5 USD (=250)");
-    numBuyFee = fee;
-    return;
+    numBuyFee = fee; return;
   }
 
-  function setSellFee ( uint256 fee ) external onlyOwner
-  {
+  function setSellFee ( uint256 fee ) external onlyOwner {
     if (fee <= 0 || fee >= 250) revert ErrorGeneric(fee, "BTA :: sell fee cannot be lower than 0 or higher than 2.5 USD (=250)");
-    numSellFee = fee;
-    return;
+    numSellFee = fee; return;
   }
 
 }
