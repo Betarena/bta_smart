@@ -20,7 +20,7 @@ import { table } from "table";
 
 import { identifyEnvironment } from '../constant/instance.bitarenatoken';
 import { ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET } from '../constant/instance';
-import { debug } from '../utils/debug.js';
+import { debug } from '../utils/debug';
 
 // #endregion ➤ 📦 Package Imports
 
