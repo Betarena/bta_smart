@@ -68,9 +68,6 @@ contract BitarenaToken is
   ///   📝 Sell Fee, expressed in dollars ($) as 0.0 (1dp)
   uint256 public numSellFee;
   /// @notice
-  ///   📝 AntiWhale Fee, expressed as a percentage (%) as 0.0 (1dp)
-  uint256 public numMaxTransactionAmount;
-  /// @notice
   ///   📝 Circulating Supply of BTA Token
   uint256 public numCirculatingSupply;
   /// @notice
@@ -296,7 +293,6 @@ contract BitarenaToken is
 
     numBuyFee  = 100;
     numSellFee = 50;
-    numMaxTransactionAmount = 100;
 
     return;
   }
@@ -539,8 +535,6 @@ contract BitarenaToken is
       // [🔘]
       emit DebugTransactionSell(sender, recipient, amount, numSellFee);
 
-      if (sendAmount > ((numCirculatingSupply * numMaxTransactionAmount) / 100)) revert ErrorGeneric(sendAmount, "BTA :: Sell amount exceeds anti-whale threshold");
-
       uint256 sellFeeAmount;
       uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
 
@@ -750,22 +744,6 @@ contract BitarenaToken is
   onlyOwner
   {
     adrBtaUsdtPool = account;
-    return;
-  }
-
-  /// @notice
-  ///  📝 SET |: anti whale fee threshold calculation.
-  /// @param _supplyPercentage { uint256 }
-  ///   💠 thre
-  function setAntiWhaleCirculationThresholdFee
-  (
-    uint256 _supplyPercentage
-  )
-  external
-  onlyOwner
-  {
-    if (_supplyPercentage <= 20) revert ErrorGeneric(_supplyPercentage, "BTA :: anti-whale threshold cannot be lower than 0.2%");
-    numMaxTransactionAmount = _supplyPercentage;
     return;
   }
 
