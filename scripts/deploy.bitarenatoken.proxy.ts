@@ -15,7 +15,7 @@
 
 // #region ➤ 📦 Package Imports
 
-import { ethernal, ethers, network } from 'hardhat';
+import { ethernal, ethers, network, upgrades } from 'hardhat';
 import { table } from "table";
 
 import { identifyEnvironment } from '../constant/instance.bitarenatoken';
@@ -67,22 +67,19 @@ async function main
      * (or) upgrades.deployProxy(TOKEN_FACTORY, { initializer: 'initialize' });
      */
     CONTRACT
-      = await TOKEN_FACTORY.deploy
+      = await upgrades.deployProxy
       (
-        ENVIRONMENT_DATA.name,
-        ENVIRONMENT_DATA.symbol,
-        ENVIRONMENT_DATA.addressFee,
-        ENVIRONMENT_DATA.listAddressTeam[0],
-        ENVIRONMENT_DATA.listAddressTeam[1],
-        ENVIRONMENT_DATA.listAddressTeam[2],
-        ENVIRONMENT_DATA.listAddressTeam[3],
-        ENVIRONMENT_DATA.listAddressTeam[4],
-        ENVIRONMENT_DATA.listAddressTeam[5],
-        ENVIRONMENT_DATA.listAddressTeam[6],
-        ENVIRONMENT_DATA.listAddressTeam[7],
-        // ENVIRONMENT_DATA.addressUniswapV3Factory,
-        // ENVIRONMENT_DATA.addressMatic
-        ENVIRONMENT_DATA.addressPermit2!
+        TOKEN_FACTORY,
+        [
+          ENVIRONMENT_DATA.name,
+          ENVIRONMENT_DATA.symbol,
+          ENVIRONMENT_DATA.addressFee,
+          ...ENVIRONMENT_DATA.listAddressTeam,
+          // ENVIRONMENT_DATA.addressUniswapV3Factory,
+          // ENVIRONMENT_DATA.addressMatic
+          ENVIRONMENT_DATA.addressPermit2
+        ],
+        { initializer: 'initialize' }
       ),
     /**
      * @description

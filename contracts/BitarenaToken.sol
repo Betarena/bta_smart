@@ -12,14 +12,11 @@ import "hardhat/console.sol";
 // ╭─────
 // │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@openzeppelin/contracts-upgradeable
 // ╰─────
-import { ERC20Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import { ERC20BurnableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
-import { ERC20PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
-import { Ownable2StepUpgradeable } from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
-import { ERC20PermitUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // ╭─────
 // │ NOTE: WARNING: IMPORTANT
@@ -46,14 +43,11 @@ import { IPancakeV3Pool } from "@pancakeswap/v3-core/contracts/interfaces/IPanca
 /// @author MigBash
 /// @custom:security-contact bitarena@gmail.com
 contract BitarenaToken is
-  Initializable,
-  ERC20Upgradeable,
-  ERC20BurnableUpgradeable,
-  ERC20PausableUpgradeable,
-  Ownable2StepUpgradeable,
-  ERC20PermitUpgradeable,
-  UUPSUpgradeable,
-  ReentrancyGuardUpgradeable
+  ERC20,
+  ERC20Burnable,
+  ERC20Permit,
+  Ownable,
+  ReentrancyGuard
 {
 
   // #region ➤ 📌 VARIABLES
@@ -135,10 +129,40 @@ contract BitarenaToken is
 
   // #endregion ➤ 📣 EVENTS
 
-  /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor()
+  /// @notice
+  ///   📝 BitarenaToken
+  constructor
+  (
+    string memory _name,
+    string memory _symbol,
+    address _adrFeeAddress,
+    address _adrFoundingTeam,
+    address _adrAdvisoryBoard,
+    address _adrInvestors,
+    address _adrTeam,
+    address _adrParticipants,
+    address _adrMarketing,
+    address _adrLiquidity,
+    address _adrReserve,
+    address _adrPancakeSwapPermit2
+  )
+  ERC20(_name, _symbol)
+  ERC20Permit(_name)
+  Ownable(msg.sender)
   {
-    _disableInitializers();
+    initialize (
+      _adrFeeAddress,
+      _adrFoundingTeam,
+      _adrAdvisoryBoard,
+      _adrInvestors,
+      _adrTeam,
+      _adrParticipants,
+      _adrMarketing,
+      _adrLiquidity,
+      _adrReserve,
+      _adrPancakeSwapPermit2
+    );
+    return;
   }
 
   // #region ➤ 🛠️ METHODS
@@ -181,10 +205,6 @@ contract BitarenaToken is
   /// @notice
   ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
   ///   |: Initialize the contract
-  /// @param _name { string }
-  ///   💠 name of the token
-  /// @param _symbol { string }
-  ///   💠 symbol of the token
   /// @param _adrFeeAddress { address }
   ///   💠 address of the fee address deposit
   /// @param _adrFoundingTeam { address }
@@ -207,8 +227,6 @@ contract BitarenaToken is
   ///   💠 address of the PancakeSwap Permit2
   function initialize
   (
-    string memory _name,
-    string memory _symbol,
     address _adrFeeAddress,
     address _adrFoundingTeam,
     address _adrAdvisoryBoard,
@@ -221,17 +239,16 @@ contract BitarenaToken is
     address _adrPancakeSwapPermit2
   )
   public
-  initializer
   {
-    adrFeeDeposit       = _adrFeeAddress;
-    adrFoundingTeam     = _adrFoundingTeam;
-    adrAdvisoryBoard    = _adrAdvisoryBoard;
-    adrInvestors        = _adrInvestors;
-    adrTeam             = _adrTeam;
-    adrParticipants     = _adrParticipants;
-    adrMarketing        = _adrMarketing;
-    adrLiquidity        = _adrLiquidity;
-    adrReserve          = _adrReserve;
+    adrFeeDeposit         = _adrFeeAddress;
+    adrFoundingTeam       = _adrFoundingTeam;
+    adrAdvisoryBoard      = _adrAdvisoryBoard;
+    adrInvestors          = _adrInvestors;
+    adrTeam               = _adrTeam;
+    adrParticipants       = _adrParticipants;
+    adrMarketing          = _adrMarketing;
+    adrLiquidity          = _adrLiquidity;
+    adrReserve            = _adrReserve;
     adrPancakeSwapPermit2 = _adrPancakeSwapPermit2;
 
     // [🐞]
@@ -248,18 +265,6 @@ contract BitarenaToken is
     console.log(unicode"🔹 [var] _adrPancakeSwapPermit2 :: %s", _adrPancakeSwapPermit2);
     console.log(unicode"🔹 [var] address(this) :: %s", address(this));
     // solhint-enable no-console
-
-    // ╭──────────────────────────────────────────────────────────────────────────────────╮
-    // │ 🟥 │ OPENZEPPELIN (V5) INITIALIZERS                                              │
-    // ╰──────────────────────────────────────────────────────────────────────────────────╯
-
-    __ERC20_init(_name, _symbol);
-    __ERC20Burnable_init();
-    __ERC20Pausable_init();
-    __Ownable_init(msg.sender);
-    __ERC20Permit_init(_name);
-    __UUPSUpgradeable_init();
-    __ReentrancyGuard_init();
 
     // ╭──────────────────────────────────────────────────────────────────────────────────╮
     // │ 🟥 │ MAIN INTIALIZER LOGIC                                                       │
@@ -299,26 +304,6 @@ contract BitarenaToken is
 
   /// @notice
   ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
-  ///   |: pauses the contract
-  function pause()
-  public
-  onlyOwner
-  {
-    _pause();
-  }
-
-  /// @notice
-  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
-  ///   |: unpauses the contract
-  function unpause()
-  public
-  onlyOwner
-  {
-    _unpause();
-  }
-
-  /// @notice
-  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
   ///   |: mints new tokens
   function mint
   (
@@ -329,20 +314,6 @@ contract BitarenaToken is
   onlyOwner
   {
     _mint(to, amount);
-  }
-
-  /// @notice
-  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
-  ///   |: upgrades the contract
-  function _authorizeUpgrade
-  (
-    address newImplementation
-  )
-  internal
-  onlyOwner
-  override
-  {
-    // solhint-disable-line no-empty-blocks
   }
 
   /// @notice
@@ -362,10 +333,6 @@ contract BitarenaToken is
     uint256 value
   )
   internal override
-  (
-    ERC20Upgradeable,
-    ERC20PausableUpgradeable
-  )
   {
     // [🐞]
     // solhint-disable no-console
