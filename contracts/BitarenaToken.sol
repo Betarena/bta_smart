@@ -725,7 +725,7 @@ contract BitarenaToken is
   external
   onlyOwner
   {
-    if (fee <= 0 || fee >= 250) revert ErrorGeneric(fee, "BTA :: buy fee cannot be lower than 0 or higher than 2.5 USD (=250)");
+    if (fee < 0 || fee > 250) revert ErrorGeneric(fee, "BTA :: buy fee cannot be lower than 0 or higher than 2.5 USD (=250)");
     numBuyFee = fee;
     return;
   }
@@ -741,7 +741,7 @@ contract BitarenaToken is
   external
   onlyOwner
   {
-    if (fee <= 0 || fee >= 250) revert ErrorGeneric(fee, "BTA :: sell fee cannot be lower than 0 or higher than 2.5 USD (=250)");
+    if (fee < 0 || fee > 250) revert ErrorGeneric(fee, "BTA :: sell fee cannot be lower than 0 or higher than 2.5 USD (=250)");
     numSellFee = fee;
     return;
   }
