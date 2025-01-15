@@ -7,7 +7,7 @@ pragma solidity 0.8.24;
 
 // #region ➤ 📦 Package Imports
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 // ╭─────
 // │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@openzeppelin/contracts-upgradeable
@@ -33,9 +33,8 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 // │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@uniswap/v3-periphery || https://github.com/Uniswap/v3-periphery
 // │ 🔗 read-more |:| (npm-counterpart) https://www.npmjs.com/package/@uniswap/v3-core || https://github.com/Uniswap/v3-core/tree/main
 // ╰─────
-// import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
-// import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
-import { IPancakeV3Pool } from "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
+import { IUniswapV3Pool } from "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+// import { IPancakeV3Pool } from "@pancakeswap/v3-core/contracts/interfaces/IPancakeV3Pool.sol";
 
 // #endregion ➤ 📦 Package Imports
 
@@ -154,18 +153,65 @@ contract BitarenaToken is
   ERC20Permit(_name)
   Ownable(msg.sender)
   {
-    initialize (
-      _adrFeeAddress,
-      _adrFoundingTeam,
-      _adrAdvisoryBoard,
-      _adrInvestors,
-      _adrTeam,
-      _adrParticipants,
-      _adrMarketing,
-      _adrLiquidity,
-      _adrReserve,
-      _adrPancakeSwapPermit2
-    );
+    adrFeeDeposit         = _adrFeeAddress;
+    adrFoundingTeam       = _adrFoundingTeam;
+    adrAdvisoryBoard      = _adrAdvisoryBoard;
+    adrInvestors          = _adrInvestors;
+    adrTeam               = _adrTeam;
+    adrParticipants       = _adrParticipants;
+    adrMarketing          = _adrMarketing;
+    adrLiquidity          = _adrLiquidity;
+    adrReserve            = _adrReserve;
+    adrPancakeSwapPermit2 = _adrPancakeSwapPermit2;
+
+    // [🐞]
+    // solhint-disable no-console
+    // console.log(unicode"🚏 [checkpoint] :: initialize(..)");
+    // console.log(unicode"🔹 [var] _adrFoundingTeam :: %s", _adrFoundingTeam);
+    // console.log(unicode"🔹 [var] _adrAdvisoryBoard :: %s", _adrAdvisoryBoard);
+    // console.log(unicode"🔹 [var] _adrInvestors :: %s", _adrInvestors);
+    // console.log(unicode"🔹 [var] _adrTeam :: %s", _adrTeam);
+    // console.log(unicode"🔹 [var] _adrParticipants :: %s", _adrParticipants);
+    // console.log(unicode"🔹 [var] _adrMarketing :: %s", _adrMarketing);
+    // console.log(unicode"🔹 [var] _adrLiquidity :: %s", _adrLiquidity);
+    // console.log(unicode"🔹 [var] _adrReserve :: %s", _adrReserve);
+    // console.log(unicode"🔹 [var] _adrPancakeSwapPermit2 :: %s", _adrPancakeSwapPermit2);
+    // console.log(unicode"🔹 [var] address(this) :: %s", address(this));
+    // solhint-enable no-console
+
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🟥 │ MAIN INTIALIZER LOGIC                                                       │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+    uint256 _onePercent = calcOnePercentOfTotalSupply();
+
+    _mint(adrFoundingTeam,  (_onePercent * 5));
+    _mint(adrAdvisoryBoard, (_onePercent * 2));
+    _mint(adrInvestors,     (_onePercent * 4));
+    _mint(adrTeam,          (_onePercent * 5));
+    _mint(adrParticipants,  (_onePercent * 10));
+    _mint(adrMarketing,     (_onePercent * 10));
+    _mint(adrLiquidity,     (_onePercent * 60));
+    _mint(adrReserve,       (_onePercent * 4));
+
+    // Causes Error:
+    // ProviderError: Error: VM Exception while processing transaction: reverted with panic code 0x11 (Arithmetic operation overflowed outside of an unchecked block)
+    updateCirculatingSupply();
+
+    mapAddressExcluded[owner()]          = true;
+    mapAddressExcluded[address(this)]    = true;
+    mapAddressExcluded[adrFoundingTeam]  = true;
+    mapAddressExcluded[adrAdvisoryBoard] = true;
+    mapAddressExcluded[adrInvestors]     = true;
+    mapAddressExcluded[adrTeam]          = true;
+    mapAddressExcluded[adrParticipants]  = true;
+    mapAddressExcluded[adrMarketing]     = true;
+    mapAddressExcluded[adrLiquidity]     = true;
+    mapAddressExcluded[adrReserve]       = true;
+
+    numBuyFee  = 100;
+    numSellFee = 50;
+
     return;
   }
 
@@ -208,106 +254,6 @@ contract BitarenaToken is
 
   /// @notice
   ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
-  ///   |: Initialize the contract
-  /// @param _adrFeeAddress { address }
-  ///   💠 address of the fee address deposit
-  /// @param _adrFoundingTeam { address }
-  ///   💠 address of the founding team
-  /// @param _adrAdvisoryBoard { address }
-  ///   💠 address of the advisory board
-  /// @param _adrInvestors { address }
-  ///   💠 address of the investors
-  /// @param _adrTeam { address }
-  ///   💠 address of the team
-  /// @param _adrParticipants { address }
-  ///   💠 address of the participants
-  /// @param _adrMarketing { address }
-  ///   💠 address of the marketing
-  /// @param _adrLiquidity { address }
-  ///   💠 address of the liquidity
-  /// @param _adrReserve { address }
-  ///   💠 address of the reserve
-  /// @param _adrPancakeSwapPermit2 { address }
-  ///   💠 address of the PancakeSwap Permit2
-  function initialize
-  (
-    address _adrFeeAddress,
-    address _adrFoundingTeam,
-    address _adrAdvisoryBoard,
-    address _adrInvestors,
-    address _adrTeam,
-    address _adrParticipants,
-    address _adrMarketing,
-    address _adrLiquidity,
-    address _adrReserve,
-    address _adrPancakeSwapPermit2
-  )
-  private
-  {
-    adrFeeDeposit         = _adrFeeAddress;
-    adrFoundingTeam       = _adrFoundingTeam;
-    adrAdvisoryBoard      = _adrAdvisoryBoard;
-    adrInvestors          = _adrInvestors;
-    adrTeam               = _adrTeam;
-    adrParticipants       = _adrParticipants;
-    adrMarketing          = _adrMarketing;
-    adrLiquidity          = _adrLiquidity;
-    adrReserve            = _adrReserve;
-    adrPancakeSwapPermit2 = _adrPancakeSwapPermit2;
-
-    // [🐞]
-    // solhint-disable no-console
-    console.log(unicode"🚏 [checkpoint] :: initialize(..)");
-    console.log(unicode"🔹 [var] _adrFoundingTeam :: %s", _adrFoundingTeam);
-    console.log(unicode"🔹 [var] _adrAdvisoryBoard :: %s", _adrAdvisoryBoard);
-    console.log(unicode"🔹 [var] _adrInvestors :: %s", _adrInvestors);
-    console.log(unicode"🔹 [var] _adrTeam :: %s", _adrTeam);
-    console.log(unicode"🔹 [var] _adrParticipants :: %s", _adrParticipants);
-    console.log(unicode"🔹 [var] _adrMarketing :: %s", _adrMarketing);
-    console.log(unicode"🔹 [var] _adrLiquidity :: %s", _adrLiquidity);
-    console.log(unicode"🔹 [var] _adrReserve :: %s", _adrReserve);
-    console.log(unicode"🔹 [var] _adrPancakeSwapPermit2 :: %s", _adrPancakeSwapPermit2);
-    console.log(unicode"🔹 [var] address(this) :: %s", address(this));
-    // solhint-enable no-console
-
-    // ╭──────────────────────────────────────────────────────────────────────────────────╮
-    // │ 🟥 │ MAIN INTIALIZER LOGIC                                                       │
-    // ╰──────────────────────────────────────────────────────────────────────────────────╯
-
-    uint256 _onePercent = calcOnePercentOfTotalSupply();
-
-    _mint(adrFoundingTeam,  (_onePercent * 5));
-    _mint(adrAdvisoryBoard, (_onePercent * 2));
-    _mint(adrInvestors,     (_onePercent * 4));
-    _mint(adrTeam,          (_onePercent * 5));
-    _mint(adrParticipants,  (_onePercent * 10));
-    _mint(adrMarketing,     (_onePercent * 10));
-    _mint(adrLiquidity,     (_onePercent * 60));
-    _mint(adrReserve,       (_onePercent * 4));
-
-    // Causes Error:
-    // ProviderError: Error: VM Exception while processing transaction: reverted with panic code 0x11 (Arithmetic operation overflowed outside of an unchecked block)
-    updateCirculatingSupply();
-
-    mapAddressExcluded[owner()]          = true;
-    mapAddressExcluded[address(this)]    = true;
-    mapAddressExcluded[adrFoundingTeam]  = true;
-    mapAddressExcluded[adrAdvisoryBoard] = true;
-    mapAddressExcluded[adrInvestors]     = true;
-    mapAddressExcluded[adrTeam]          = true;
-    mapAddressExcluded[adrParticipants]  = true;
-    mapAddressExcluded[adrMarketing]     = true;
-    mapAddressExcluded[adrLiquidity]     = true;
-    mapAddressExcluded[adrReserve]       = true;
-
-    numBuyFee  = 100;
-    numSellFee = 50;
-
-    return;
-  }
-
-  /// @notice
-  ///   📝 IMPORTANT ERC-20 (Openzeppelin v.5)
   ///   |: mints new tokens
   function mint
   (
@@ -340,11 +286,11 @@ contract BitarenaToken is
   {
     // [🐞]
     // solhint-disable no-console
-    console.log(unicode"🚏 [checkpoint] :: _update(..)");
-    console.log(unicode"🔹 [var] sender :: %s", from);
-    console.log(unicode"🔹 [var] recipient :: %s", to);
-    console.log(unicode"🔹 [var] amount :: %s", value);
-    console.log(unicode"🔹 [var] msg.sender :: %s", msg.sender);
+    // console.log(unicode"🚏 [checkpoint] :: _update(..)");
+    // console.log(unicode"🔹 [var] sender :: %s", from);
+    // console.log(unicode"🔹 [var] recipient :: %s", to);
+    // console.log(unicode"🔹 [var] amount :: %s", value);
+    // console.log(unicode"🔹 [var] msg.sender :: %s", msg.sender);
     // solhint-enable no-console
 
     // [🔘]
@@ -393,10 +339,10 @@ contract BitarenaToken is
   {
     // [🐞]
     // solhint-disable no-console
-    console.log(unicode"🚏 [checkpoint] :: transferBuySellTakeFees(..)");
-    console.log(unicode"🔹 [var] sender :: %s", sender);
-    console.log(unicode"🔹 [var] recipient :: %s", recipient);
-    console.log(unicode"🔹 [var] amount :: %s", amount);
+    // console.log(unicode"🚏 [checkpoint] :: transferBuySellTakeFees(..)");
+    // console.log(unicode"🔹 [var] sender :: %s", sender);
+    // console.log(unicode"🔹 [var] recipient :: %s", recipient);
+    // console.log(unicode"🔹 [var] amount :: %s", amount);
     // solhint-enable no-console
 
     /// @notice 📝 amount of tokens to send
@@ -436,7 +382,7 @@ contract BitarenaToken is
 
       // [🐞]
       // solhint-disable-next-line
-      console.log(unicode"🚏 [checkpoint] :: Not Valid Fee Transaction Deduction");
+      // console.log(unicode"🚏 [checkpoint] :: Not Valid Fee Transaction Deduction");
 
       return sendAmount;
     }
@@ -481,7 +427,7 @@ contract BitarenaToken is
 
       // [🐞]
       // solhint-disable-next-line
-      console.log(unicode"🚏 [checkpoint] :: Buy Executed");
+      // console.log(unicode"🚏 [checkpoint] :: Buy Executed");
 
       super._update(sender, adrFeeDeposit, buyFeeAmount);
     }
@@ -516,7 +462,7 @@ contract BitarenaToken is
 
       // [🐞]
       // solhint-disable-next-line
-      console.log(unicode"🚏 [checkpoint] :: Sell Executed");
+      // console.log(unicode"🚏 [checkpoint] :: Sell Executed");
 
       // 104% of the sellFeeAmount is sent to the fee deposit address
       super._update(sender, adrFeeDeposit, sellFeeAmount);
@@ -548,8 +494,11 @@ contract BitarenaToken is
       return;
     }
 
-    console.log(unicode"🔹 [var] numCirculatingSupply :: %s", numCirculatingSupply);
-    console.log(unicode"🔹 [var] totalSupply() :: %s", totalSupply());
+    // [🐞]
+    // solhint-disable no-console
+    // console.log(unicode"🔹 [var] numCirculatingSupply :: %s", numCirculatingSupply);
+    // console.log(unicode"🔹 [var] totalSupply() :: %s", totalSupply());
+    // solhint-enable no-console
 
     uint256 numNonCirculatingSupply;
     uint256 numTotalSupply = totalSupply();
@@ -582,8 +531,11 @@ contract BitarenaToken is
       numCirculatingSupply = numTotalSupply - numNonCirculatingSupply;
     }
 
-    console.log(unicode"🔹 [var] numNonCirculatingSupply :: %s", numNonCirculatingSupply);
-    console.log(unicode"🔹 [var] numCirculatingSupply :: %s", numCirculatingSupply);
+    // [🐞]
+    // solhint-disable no-console
+    // console.log(unicode"🔹 [var] numNonCirculatingSupply :: %s", numNonCirculatingSupply);
+    // console.log(unicode"🔹 [var] numCirculatingSupply :: %s", numCirculatingSupply);
+    // solhint-enable no-console
 
     return;
   }
@@ -637,7 +589,7 @@ contract BitarenaToken is
     uint256
   )
   {
-    (uint160 sqrtPriceX96, , , , , , ) = IPancakeV3Pool(_adrBtaUsdtPool).slot0();
+    (uint160 sqrtPriceX96, , , , , , ) = isUniswapV3Pool(_adrBtaUsdtPool).slot0();
 
     // [🔘]
     // emit DebugSwapSnapshot(sqrtPriceX96);
