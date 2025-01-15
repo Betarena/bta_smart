@@ -111,22 +111,22 @@ contract BitarenaToken is
 
   /// @notice
   ///   📝 Debugging event for WithdrawETH
-  event DebugFunctionWithdrawETH  (address indexed sender, uint256 amount);
+  // event DebugFunctionWithdrawETH  (address indexed sender, uint256 amount);
   /// @notice
   ///   📝 Debugging event for Transaction
-  event DebugTransaction          (address indexed sender, address indexed recipient, uint256 amount, address indexed msgSender);
+  // event DebugTransaction          (address indexed sender, address indexed recipient, uint256 amount, address indexed msgSender);
   /// @notice
   ///   📝 Debugging event for Transaction (Standard)
-  event DebugTransactionStandard  (address indexed sender, address indexed recipient, uint256 amount);
+  // event DebugTransactionStandard  (address indexed sender, address indexed recipient, uint256 amount);
   /// @notice
   ///   📝 Debugging event for Transaction (Buy)
-  event DebugTransactionBuy       (address indexed sender, address indexed recipient, uint256 amount, uint256 buyFeeAmount);
+  // event DebugTransactionBuy       (address indexed sender, address indexed recipient, uint256 amount, uint256 buyFeeAmount);
   /// @notice
   ///   📝 Debugging event for Transaction (Sell)
-  event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
+  // event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
   /// @notice
   ///   📝 Debugging event for Swap Snapshot
-  event DebugSwapSnapshot         (uint160 sqrtPriceX96);
+  // event DebugSwapSnapshot         (uint160 sqrtPriceX96);
   /// @notice
   ///   📝 Error event for Generic Error
   error ErrorGeneric              (uint256 value, string message);
@@ -198,7 +198,7 @@ contract BitarenaToken is
     (bool success,) = recipient.call{ value: amount }("BTA :: Amount Withdrawn from smart contract");
     if (!success) revert ErrorGeneric (0, "BTA :: Withdraw transfer failed");
     // [🔘]
-    emit DebugFunctionWithdrawETH(owner(), amount);
+    // emit DebugFunctionWithdrawETH(owner(), amount);
     return;
   }
 
@@ -242,7 +242,7 @@ contract BitarenaToken is
     address _adrReserve,
     address _adrPancakeSwapPermit2
   )
-  public
+  private
   {
     adrFeeDeposit         = _adrFeeAddress;
     adrFoundingTeam       = _adrFoundingTeam;
@@ -348,7 +348,7 @@ contract BitarenaToken is
     // solhint-enable no-console
 
     // [🔘]
-    emit DebugTransaction(from, to, value, msg.sender);
+    // emit DebugTransaction(from, to, value, msg.sender);
 
     // ╭─────
     // │ NOTE: |:| put code to run **BEFORE** the transfer HERE
@@ -432,7 +432,7 @@ contract BitarenaToken is
     )
     {
       // [🔘]
-      emit DebugTransactionStandard(sender, recipient, amount);
+      // emit DebugTransactionStandard(sender, recipient, amount);
 
       // [🐞]
       // solhint-disable-next-line
@@ -467,7 +467,7 @@ contract BitarenaToken is
     )
     {
       // [🔘]
-      emit DebugTransactionBuy(sender, recipient, amount, numBuyFee);
+      // emit DebugTransactionBuy(sender, recipient, amount, numBuyFee);
 
       uint256 buyFeeAmount;
       uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
@@ -504,7 +504,7 @@ contract BitarenaToken is
     )
     {
       // [🔘]
-      emit DebugTransactionSell(sender, recipient, amount, numSellFee);
+      // emit DebugTransactionSell(sender, recipient, amount, numSellFee);
 
       uint256 sellFeeAmount;
       uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
@@ -640,7 +640,7 @@ contract BitarenaToken is
     (uint160 sqrtPriceX96, , , , , , ) = IPancakeV3Pool(_adrBtaUsdtPool).slot0();
 
     // [🔘]
-    emit DebugSwapSnapshot(sqrtPriceX96);
+    // emit DebugSwapSnapshot(sqrtPriceX96);
 
     uint256 sqrtPriceX96Pow = uint256(sqrtPriceX96 * 10**12);
     uint256 priceFromSqrtX96 = sqrtPriceX96Pow / 2**96;
