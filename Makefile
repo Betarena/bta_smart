@@ -58,9 +58,11 @@ hardhat-contract-deploy:
 	echo -e \
 		"\
 		\n╭──────────────────────────────────────────────────────────────────╮\
-		\n│ 🟢 Deploy contract                                               │\
-		\n│ $(ENV_CONTRACT_TARGET) \
-		\n│ $(ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET) \
+		\n│ 🟢 │ Deploy contract                                             │\
+		\n┣──────────────────────────────────────────────────────────────────┫\
+		\n│ script - $(ENV_CONTRACT_TARGET) \
+		\n│ network - $(ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET) \
+		\n│ environment - $(ENV_DEPLOY_TARGET) \
 		\n╰──────────────────────────────────────────────────────────────────╯"
 	#
 
@@ -91,16 +93,18 @@ hardhat-contract-verify-public-chain:
 	echo -e \
 		"\
 		\n╭──────────────────────────────────────────────────────────────────╮\
-		\n│ 🔍 Verify contract                                               │\
-		\n│ $(address) \
-		\n│ $(ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET) \
+		\n│ 🔍 │ Verify contract                                             │\
+		\n┣──────────────────────────────────────────────────────────────────┫\
+		\n│ address - $(address) \
+		\n│ network - $(ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET) \
 		\n╰──────────────────────────────────────────────────────────────────╯"
 	#
 
 	npx hardhat verify \
 		"$(address)" \
 		--network $(ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET) \
-		--show-stack-traces
+		--show-stack-traces \
+		$(constructorArguments)
 	#
 #
 
