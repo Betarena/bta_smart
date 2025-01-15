@@ -25,9 +25,25 @@ interface IEnvironment
   {
     [key in IEnvrionment]:
     {
+      /**
+       * @description
+       * 📝 smart contract deployment name
+       */
       name: string;
+      /**
+       * @description
+       * 📝 smart contract deployment symbol
+       */
       symbol: string;
+      /**
+       * @description
+       * 📝 addressFee is the fee address of the environment.
+       */
       addressFee: string;
+      /**
+       * @description
+       * 📝 listAddressTeam is the list of team addresses.
+       */
       listAddressTeam: string[];
     }
   }
@@ -37,8 +53,20 @@ interface IEnvironment
       {
         [key in IChainSubNetwork]:
         {
+          /**
+           * @description
+           * 📝 addressUniswapV3Factory is the uniswap v3 factory contract address.
+           */
           addressUniswapV3Factory?: string;
+          /**
+           * @description
+           * 📝 addressMatic is the matic contract address.
+           */
           addressMatic?: string;
+          /**
+           * @description
+           * 📝 addressPermit2 is the permit2 contract address.
+           */
           addressPermit2?: string;
         }
       }
@@ -113,6 +141,7 @@ export function identifyEnvironment
     /**
      * @description
      * 📝 environment network target.
+     * IMPORTANT: The addresses are for reference only.
      * 🔗 read-more |:| https://docs.uniswap.org/contracts/v3/reference/deployments
      * 🔗 read-more |:| https://developer.pancakeswap.finance/contracts/permit2/addresses
      */
@@ -124,13 +153,23 @@ export function identifyEnvironment
         {
           // addressUniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
           // addressMatic: '0x7D1AfA7B718fb893dB30A3aBc0Cfc608AaCfeBB0',
-          addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
         },
         sepolia:
         {
           // addressUniswapV3Factory: '0x0227628f3F023bb0B980b67D528571c95c6DaC1c',
           // addressMatic: '0x3fd0A53F4Bf853985a95F4Eb3F9C9FDE1F8e2b53',
-          addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
         }
       },
       polygon:
@@ -138,14 +177,24 @@ export function identifyEnvironment
         mainnet:
         {
           // addressUniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-          // addressMatic: '???',
-          addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
+          // addressMatic: 'NaN',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: NaN
+          // ╰─────
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
         },
         amony:
         {
           // addressUniswapV3Factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-          // addressMatic: '???',
-          addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
+          // addressMatic: 'NaN',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: NaN
+          // ╰─────
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
         }
       },
       arbitrum:
@@ -154,12 +203,22 @@ export function identifyEnvironment
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         },
         sepolia:
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         }
       },
@@ -169,12 +228,22 @@ export function identifyEnvironment
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         },
         sepolia:
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         }
       },
@@ -184,12 +253,22 @@ export function identifyEnvironment
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         },
         testnet:
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: NaN / Unkown / Same as Mainnet [?]
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         }
       },
@@ -199,12 +278,22 @@ export function identifyEnvironment
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: NaN / Unkown / Same as Mainnet [?]
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         },
         testnet:
         {
           // addressUniswapV3Factory: '0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7',
           // addressMatic: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniswapPermit2 :: NaN / Unkown / Same as Mainnet [?]
+          // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
+          // ╰─────
           addressPermit2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768'
         }
       }
