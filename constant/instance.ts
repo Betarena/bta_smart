@@ -26,6 +26,14 @@ export const
   // │ NOTE: |:| Destructing Environment Variables
   // ╰─────
   {
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ ⛔️ │ METAMASK                                                                    │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+    OWNER_MNEMONIC,
+    OWNER_ADDRESS,
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🔳 │ HARDHAT                                                                     │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
     REPORT_GAS,
     DEFNDER_API_KEY,
     DEFNDER_API_SECRET,
@@ -35,13 +43,22 @@ export const
     API_KEY_BASESCAN,
     API_KEY_BSCSCAN,
     API_KEY_OPBNBSCAN,
-    ETHERNAL_API_KEY,
-    OWNER_MNEMONIC,
     API_KEY_ALCHEMY,
-    OWNER_ADDRESS,
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 💠 │ HARDHAT (PLUGIN) ETERHNAL                                                   │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+    ETHERNAL_API_KEY,
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🟦 │ HARDHAT (PLUGIN) DEFENDER                                                   │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+    DEFENDER_RELAYER_ADDRESS,
+    DEFENDER_RELAYER_ID,
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🔥 │ ENVIRONMENT SWITCH                                                          │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
     ENV_DEPLOY_TARGET,
     ENV_NETWORK_TARGET,
     ENV_NETWORK_HARDHAT_FORK_TARGET,
-    ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET
+    ENV_NETWORK_HARDHAT_DEPLOYMENT_TARGET,
   } = process.env
 ;
