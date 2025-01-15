@@ -124,7 +124,11 @@ contract BitarenaToken is
   /// @notice
   ///   📝 Debugging event for Transaction (Sell)
   event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
-
+  /// @notice
+  ///   📝 Debugging event for Swap Snapshot
+  event DebugSwapSnapshot         (uint160 sqrtPriceX96);
+  /// @notice
+  ///   📝 Error event for Generic Error
   error ErrorGeneric              (uint256 value, string message);
 
   // #endregion ➤ 📣 EVENTS
@@ -634,6 +638,10 @@ contract BitarenaToken is
   )
   {
     (uint160 sqrtPriceX96, , , , , , ) = IPancakeV3Pool(_adrBtaUsdtPool).slot0();
+
+    // [🔘]
+    emit DebugSwapSnapshot(sqrtPriceX96);
+
     uint256 sqrtPriceX96Pow = uint256(sqrtPriceX96 * 10**12);
     uint256 priceFromSqrtX96 = sqrtPriceX96Pow / 2**96;
     priceFromSqrtX96 = priceFromSqrtX96**2;
