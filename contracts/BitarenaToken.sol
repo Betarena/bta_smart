@@ -589,7 +589,7 @@ contract BitarenaToken is
     uint256
   )
   {
-    (uint160 sqrtPriceX96, , , , , , ) = isUniswapV3Pool(_adrBtaUsdtPool).slot0();
+    (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(_adrBtaUsdtPool).slot0();
 
     // [🔘]
     // emit DebugSwapSnapshot(sqrtPriceX96);
