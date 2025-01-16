@@ -41,7 +41,8 @@ export async function debug
 (
   path: string,
   contractAddress: string,
-  environmentData: any
+  environmentData: any,
+  contractDeployTransaction: string
 ): Promise < void >
 {
   // [🐞]
@@ -89,7 +90,8 @@ export async function debug
           owner: network.config.from ?? '0x0',
           gasPrice: network.config.gasPrice,
           gasLimit: network.config.gas,
-          gasMultiplier: network.config.gasMultiplier
+          gasMultiplier: network.config.gasMultiplier,
+          txHash: contractDeployTransaction
         },
         contract:
         {

@@ -98,7 +98,8 @@ async function main
     (
       [
         ['Network', network?.name],
-        ['Contract Address', CONTRACT_ADDRESS]
+        ['Contract Address', CONTRACT_ADDRESS],
+        ['Transaction Hash', CONTRACT.deploymentTransaction()?.hash]
       ]
     )
   );
@@ -121,7 +122,8 @@ async function main
   (
     debugFile,
     CONTRACT_ADDRESS,
-    ENVIRONMENT_DATA
+    ENVIRONMENT_DATA,
+    CONTRACT.deploymentTransaction()?.hash ?? '0x0'
   );
 
   return;
