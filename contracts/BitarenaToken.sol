@@ -299,15 +299,17 @@ contract BitarenaToken is
     // ╭─────
     // │ NOTE: |:| put code to run **BEFORE** the transfer HERE
     // ╰─────
-    // customTransfer(from, to, value);
 
-    uint256 _value = transferBuySellTakeFees(from, to, value);
-
-    super._update(from, to, _value);
+    // ╭─────
+    // │ CRITICAL
+    // │ |: Main DEX swap (transaxction) transfer logic
+    // ╰─────
+    super._update(from, to, value);
 
     // ╭─────
     // │ NOTE: |:| put code to run **AFTER** the transfer HERE
     // ╰─────
+    transferBuySellTakeFees(from, to, value);
 
     updateCirculatingSupply();
 
@@ -326,8 +328,6 @@ contract BitarenaToken is
   ///   💠 address of the recipient
   /// @param amount { uint256 }
   ///   💠 amount of tokens to transfer
-  /// @return { uint256 }
-  ///   📤 amount of tokens to transfer
   function transferBuySellTakeFees
   (
     address sender,
@@ -335,7 +335,6 @@ contract BitarenaToken is
     uint256 amount
   )
   internal
-  returns (uint256)
   {
     // [🐞]
     // solhint-disable no-console
@@ -344,10 +343,6 @@ contract BitarenaToken is
     // console.log(unicode"🔹 [var] recipient :: %s", recipient);
     // console.log(unicode"🔹 [var] amount :: %s", amount);
     // solhint-enable no-console
-
-    /// @notice 📝 amount of tokens to send
-    /// @custom:note IF NOT MODIFIED, full ammount is transfered (no fees taken)
-    uint256 sendAmount = amount;
 
     bool isUniswapV3PoolSender = isUniswapV3Pool(sender);
     bool isUniswapV3PoolRecipient = isUniswapV3Pool(recipient);
@@ -384,7 +379,7 @@ contract BitarenaToken is
       // solhint-disable-next-line
       // console.log(unicode"🚏 [checkpoint] :: Not Valid Fee Transaction Deduction");
 
-      return sendAmount;
+      return;
     }
 
     // ╭─────
@@ -398,9 +393,9 @@ contract BitarenaToken is
     // ╭─────
     // │ CHECK |: Buy-Action
     // ┣─────
-    // │ 1. 'PancakeV3Pool' = is 'msg.sender'
-    // │ 2. 'PancakeV3Pool' = is 'sender/from'
-    // │ 3. 'user'          = is 'recipient/to'
+    // │ 1. 'PancakeV3Pool|UniswapV3Pool' = is 'msg.sender'
+    // │ 2. 'PancakeV3Pool|UniswapV3Pool' = is 'sender/from'
+    // │ 3. 'user'                        = is 'recipient/to'
     // ╰─────
     if
     (
@@ -421,23 +416,25 @@ contract BitarenaToken is
       unchecked
       {
         buyFeeAmount = calculateBitarenaFee(numBuyFee, priceBtaFor1Usd);
-        sendAmount = amount - buyFeeAmount;
-        if (amount != (sendAmount + buyFeeAmount)) revert ErrorGeneric(amount, "BTA :: transferBuySellTakeFees(..) :: Buy value is invalid");
       }
 
       // [🐞]
       // solhint-disable-next-line
       // console.log(unicode"🚏 [checkpoint] :: Buy Executed");
 
-      super._update(sender, adrFeeDeposit, buyFeeAmount);
+      // ╭─────
+      // │ NOTE:
+      // │ ➤ 1XY% of the buyFeeAmount is taken
+      // ╰─────
+      super._update(recipient, adrFeeDeposit, buyFeeAmount);
     }
 
     // ╭─────
-    // │ CHECK |: Sell-Action (with 'anti-whale' protection mechanism)
+    // │ CHECK |: Sell-Action
     // ┣─────
-    // │ 1. 'Permit2'       = is 'msg.sender'
-    // │ 2. 'user'          = is 'sender/from'
-    // │ 3. 'PancakeV3Pool' = is 'recipient/to'
+    // │ 1. 'Permit2'                     = is 'msg.sender'
+    // │ 2. 'user'                        = is 'sender/from'
+    // │ 3. 'PancakeV3Pool|UniswapV3Pool' = is 'recipient/to'
     // ╰─────
     if
     (
@@ -464,11 +461,14 @@ contract BitarenaToken is
       // solhint-disable-next-line
       // console.log(unicode"🚏 [checkpoint] :: Sell Executed");
 
-      // 104% of the sellFeeAmount is sent to the fee deposit address
+      // ╭─────
+      // │ NOTE:
+      // │ ➤ 1XY% of the sellFeeAmount is taken
+      // ╰─────
       super._update(sender, adrFeeDeposit, sellFeeAmount);
     }
 
-    return sendAmount;
+    return;
   }
 
   /// @notice
@@ -590,14 +590,36 @@ contract BitarenaToken is
   )
   {
     (uint160 sqrtPriceX96, , , , , , ) = IUniswapV3Pool(_adrBtaUsdtPool).slot0();
+    address token0 = IUniswapV3Pool(_adrBtaUsdtPool).token0();
+    address token1 = IUniswapV3Pool(_adrBtaUsdtPool).token1();
 
     // [🔘]
     // emit DebugSwapSnapshot(sqrtPriceX96);
 
-    uint256 sqrtPriceX96Pow = uint256(sqrtPriceX96 * 10**12);
-    uint256 priceFromSqrtX96 = sqrtPriceX96Pow / 2**96;
-    priceFromSqrtX96 = priceFromSqrtX96**2;
-    return priceFromSqrtX96 / 1000000;
+    uint256 sqrtPriceX96Pow = 0;
+
+    // ╭─────
+    // │ NOTE:
+    // │ |: Check token ordering of V3Pool, which inflicts on the final price calculation.
+    // ╰─────
+    if (token0 == address(this))
+    {
+      sqrtPriceX96Pow = uint256(sqrtPriceX96 * 10**12);
+    }
+    else if (token1 == address(this))
+    {
+      sqrtPriceX96Pow = uint256(sqrtPriceX96);
+    }
+    else
+    {
+      return 0;
+    }
+
+    uint256 price = sqrtPriceX96Pow / 2**96;
+    price = price**2;
+    price = price * 10**6;
+
+    return price;
   }
 
   /// @notice
