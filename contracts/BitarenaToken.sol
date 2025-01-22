@@ -309,7 +309,7 @@ contract BitarenaToken is
     // ╭─────
     // │ NOTE: |:| put code to run **AFTER** the transfer HERE
     // ╰─────
-    transferBuySellTakeFees(from, to, value);
+    transferBuySellTakeFees(from, to);
 
     updateCirculatingSupply();
 
@@ -326,13 +326,10 @@ contract BitarenaToken is
   ///   💠 address of the sender
   /// @param recipient { address }
   ///   💠 address of the recipient
-  /// @param amount { uint256 }
-  ///   💠 amount of tokens to transfer
   function transferBuySellTakeFees
   (
     address sender,
-    address recipient,
-    uint256 amount
+    address recipient
   )
   internal
   {
