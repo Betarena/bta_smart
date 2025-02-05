@@ -68,6 +68,11 @@ interface IEnvironment
            * 📝 addressPermit2 is the permit2 contract address.
            */
           addressPermit2?: string;
+          /**
+           * @description
+           * 📝 addressUniversalRouter is the universal router contract address.
+           */
+          addressUniversalRouter?: string;
         }
       }
     >
@@ -101,8 +106,8 @@ export function identifyEnvironment
        */
       production:
       {
-        name: 'Bitarena',
-        symbol: 'BTA',
+        name: 'BitarenaDev',
+        symbol: 'BTAD',
         addressFee: '0x4A60e8B372ba9Ea596b03c6a0c43bf46A55Ce26C',
         listAddressTeam:
         [
@@ -158,7 +163,12 @@ export function identifyEnvironment
           // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
           // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
           // ╰─────
-          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniversalRouter :: 0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD
+          // ╰─────
+          addressUniversalRouter: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD'
         },
         sepolia:
         {
@@ -169,7 +179,13 @@ export function identifyEnvironment
           // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
           // │ |: PancakePermit2 :: 0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768
           // ╰─────
-          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniversalRouter :: 0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD [?] (possibly deprecated)
+          // │ |: UniversalRouter :: 0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b [?] (possibly newest)
+          // ╰─────
+          addressUniversalRouter: '0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b'
         }
       },
       polygon:
@@ -183,7 +199,12 @@ export function identifyEnvironment
           // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
           // │ |: PancakePermit2 :: NaN
           // ╰─────
-          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniversalRouter :: 0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2
+          // ╰─────
+          addressUniversalRouter: '0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2'
         },
         amony:
         {
@@ -194,7 +215,12 @@ export function identifyEnvironment
           // │ |: UniswapPermit2 :: 0x000000000022D473030F116dDEE9F6B43aC78BA3
           // │ |: PancakePermit2 :: NaN
           // ╰─────
-          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+          addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+          // ╭─────
+          // │ NOTE:
+          // │ |: UniversalRouter :: 0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2
+          // ╰─────
+          addressUniversalRouter: '0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2'
         }
       },
       arbitrum:

@@ -29,7 +29,7 @@ const
    * @description
    * 📝 debug file.
    */
-  debugFile = './logs/deployment.bitarena.json'
+  debugFile = './logs/deployment.bitarena.json5'
 ;
 
 /**
@@ -71,7 +71,7 @@ async function main
       (
         ENVIRONMENT_DATA.name,
         ENVIRONMENT_DATA.symbol,
-        ENVIRONMENT_DATA.addressFee,
+
         ENVIRONMENT_DATA.listAddressTeam[0],
         ENVIRONMENT_DATA.listAddressTeam[1],
         ENVIRONMENT_DATA.listAddressTeam[2],
@@ -80,9 +80,12 @@ async function main
         ENVIRONMENT_DATA.listAddressTeam[5],
         ENVIRONMENT_DATA.listAddressTeam[6],
         ENVIRONMENT_DATA.listAddressTeam[7],
+
         // ENVIRONMENT_DATA.addressUniswapV3Factory,
         // ENVIRONMENT_DATA.addressMatic
-        ENVIRONMENT_DATA.addressPermit2!
+        ENVIRONMENT_DATA.addressFee,
+        ENVIRONMENT_DATA.addressPermit2!,
+        ENVIRONMENT_DATA.addressUniversalRouter!
       ),
     /**
      * @description
