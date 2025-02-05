@@ -17,6 +17,7 @@ import { ERC20Burnable } from "@openzeppelin/contracts/token/ERC20/extensions/ER
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 // ╭─────
 // │ NOTE: WARNING: IMPORTANT
@@ -49,60 +50,69 @@ contract BitarenaToken is
   ReentrancyGuard
 {
 
+  // #region ➤ 📚 LIBRARY
+
+  using Strings for string;
+
+  // #endregion ➤ 📚 LIBRARY
+
   // #region ➤ 📌 VARIABLES
 
   /// @notice
   ///   📝 ERC-20 Token initial supply
   uint256 public constant SUPPLY_TOTAL = 21000000;
   /// @notice
-  ///   📝 Buy Fee, expressed in dollars ($) as 0.0 (1dp)
-  uint256 public numBuyFee;
-  /// @notice
-  ///   📝 Sell Fee, expressed in dollars ($) as 0.0 (1dp)
-  uint256 public numSellFee;
-  /// @notice
   ///   📝 Circulating Supply of BTA Token
   uint256 public numCirculatingSupply;
-  /// @notice
-  ///   📝 Main BTA liquidity address (usdt)
-  address public adrBtaUsdtPool;
-  /// @notice
-  ///   📝 Address of the PancakeSwap Permit2
-  address public adrPancakeSwapPermit2;
-  /// @notice
-  ///   📝 Address of the Fee Deposit
-  address public adrFeeDeposit;
   /// @notice
   ///   📝 Mapping of Official Bitarena Addresses that are Excluded from Fee
   mapping (address addressExcluded => bool isExcluded) private mapAddressExcluded;
   /// @notice
   ///   📝 Mapping of Official Bitarena Addresses of (V3) Liquidity Pools
   mapping (address addressV3Pool => bool isPool) private mapAddressV3Pool;
+  /// @notice
+  ///   📝 Debugging flag
+  bool private isDebugActive = true;
 
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrFoundingTeam;
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrAdvisoryBoard;
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrInvestors;
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrTeam;
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrParticipants;
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrMarketing;
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrLiquidity;
-  /// @notice
-  ///   📝 Address of Official Team
-  address public adrReserve;
+  struct IBetarenaAddresses
+  {
+    address adrFoundingTeam;
+    address adrAdvisoryBoard;
+    address adrInvestors;
+    address adrTeam;
+    address adrParticipants;
+    address adrMarketing;
+    address adrLiquidity;
+    address adrReserve;
+  }
+
+  struct IFeeLogic
+  {
+    /// @notice
+    ///   📝 Address of Uniswap - Permit2
+    address adrUniswapPermit2;
+    /// @notice
+    ///   📝 Address of Uniswap - UniversalRouter
+    address adrUniswapUniversalRouter;
+    /// @notice
+    ///   📝 Address of Betarena Fee Deposit
+    address adrFeeDeposit;
+    /// @notice
+    ///   📝 Main BTA liquidity address (usdt/usdc; a.k.a fiat price)
+    address adrBtaUsdtPool;
+    /// @notice
+    ///   📝 Buy Fee, expressed in dollars ($) as 0.0 (to 1 d.p)
+    uint256 numBuyFee;
+    /// @notice
+    ///   📝 Sell Fee, expressed in dollars ($) as 0.0 (ro 1 d.p)
+    uint256 numSellFee;
+    /// @notice
+    ///   📝 Target 'Buy' condition to be used in swap action identification
+    uint256 buyCondition;
+  }
+
+  IBetarenaAddresses public instanceBetarenaAddresses;
+  IFeeLogic public instanceFeeLogic;
 
   // #endregion ➤ 📌 VARIABLES
 
@@ -110,22 +120,22 @@ contract BitarenaToken is
 
   /// @notice
   ///   📝 Debugging event for WithdrawETH
-  // event DebugFunctionWithdrawETH  (address indexed sender, uint256 amount);
+  event DebugFunctionWithdrawETH  (address indexed sender, uint256 amount);
   /// @notice
   ///   📝 Debugging event for Transaction
-  // event DebugTransaction          (address indexed sender, address indexed recipient, uint256 amount, address indexed msgSender);
+  event DebugTransaction          (address sender, address recipient, address msgSender, address txOrigin, uint256 amount);
   /// @notice
   ///   📝 Debugging event for Transaction (Standard)
-  // event DebugTransactionStandard  (address indexed sender, address indexed recipient, uint256 amount);
+  event DebugTransactionStandard  (address indexed sender, address indexed recipient);
   /// @notice
   ///   📝 Debugging event for Transaction (Buy)
-  // event DebugTransactionBuy       (address indexed sender, address indexed recipient, uint256 amount, uint256 buyFeeAmount);
+  event DebugTransactionBuy       (address indexed sender, address indexed recipient, uint256 buyFeeAmount);
   /// @notice
   ///   📝 Debugging event for Transaction (Sell)
-  // event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 amount, uint256 sellFeeAmount);
+  event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 sellFeeAmount);
   /// @notice
   ///   📝 Debugging event for Swap Snapshot
-  // event DebugSwapSnapshot         (uint160 sqrtPriceX96);
+  event DebugSwapSnapshot         (uint160 sqrtPriceX96);
   /// @notice
   ///   📝 Error event for Generic Error
   error ErrorGeneric              (uint256 value, string message);
@@ -138,7 +148,7 @@ contract BitarenaToken is
   (
     string memory _name,
     string memory _symbol,
-    address _adrFeeAddress,
+
     address _adrFoundingTeam,
     address _adrAdvisoryBoard,
     address _adrInvestors,
@@ -147,22 +157,27 @@ contract BitarenaToken is
     address _adrMarketing,
     address _adrLiquidity,
     address _adrReserve,
-    address _adrPancakeSwapPermit2
+
+    address _adrFeeAddress,
+    address _adrUniswapPermit2,
+    address _adrUniswapUniversalRouter
   )
   ERC20(_name, _symbol)
   ERC20Permit(_name)
   Ownable(msg.sender)
   {
-    adrFeeDeposit         = _adrFeeAddress;
-    adrFoundingTeam       = _adrFoundingTeam;
-    adrAdvisoryBoard      = _adrAdvisoryBoard;
-    adrInvestors          = _adrInvestors;
-    adrTeam               = _adrTeam;
-    adrParticipants       = _adrParticipants;
-    adrMarketing          = _adrMarketing;
-    adrLiquidity          = _adrLiquidity;
-    adrReserve            = _adrReserve;
-    adrPancakeSwapPermit2 = _adrPancakeSwapPermit2;
+    instanceBetarenaAddresses.adrFoundingTeam  = _adrFoundingTeam;
+    instanceBetarenaAddresses.adrAdvisoryBoard = _adrAdvisoryBoard;
+    instanceBetarenaAddresses.adrInvestors     = _adrInvestors;
+    instanceBetarenaAddresses.adrTeam          = _adrTeam;
+    instanceBetarenaAddresses.adrParticipants  = _adrParticipants;
+    instanceBetarenaAddresses.adrMarketing     = _adrMarketing;
+    instanceBetarenaAddresses.adrLiquidity     = _adrLiquidity;
+    instanceBetarenaAddresses.adrReserve       = _adrReserve;
+
+    instanceFeeLogic.adrFeeDeposit             = _adrFeeAddress;
+    instanceFeeLogic.adrUniswapPermit2         = _adrUniswapPermit2;
+    instanceFeeLogic.adrUniswapUniversalRouter = _adrUniswapUniversalRouter;
 
     // [🐞]
     // solhint-disable no-console
@@ -175,7 +190,7 @@ contract BitarenaToken is
     // console.log(unicode"🔹 [var] _adrMarketing :: %s", _adrMarketing);
     // console.log(unicode"🔹 [var] _adrLiquidity :: %s", _adrLiquidity);
     // console.log(unicode"🔹 [var] _adrReserve :: %s", _adrReserve);
-    // console.log(unicode"🔹 [var] _adrPancakeSwapPermit2 :: %s", _adrPancakeSwapPermit2);
+    // console.log(unicode"🔹 [var] _adrUniswapPermit2 :: %s", _adrUniswapPermit2);
     // console.log(unicode"🔹 [var] address(this) :: %s", address(this));
     // solhint-enable no-console
 
@@ -185,32 +200,33 @@ contract BitarenaToken is
 
     uint256 _onePercent = calcOnePercentOfTotalSupply();
 
-    _mint(adrFoundingTeam,  (_onePercent * 5));
-    _mint(adrAdvisoryBoard, (_onePercent * 2));
-    _mint(adrInvestors,     (_onePercent * 4));
-    _mint(adrTeam,          (_onePercent * 5));
-    _mint(adrParticipants,  (_onePercent * 10));
-    _mint(adrMarketing,     (_onePercent * 10));
-    _mint(adrLiquidity,     (_onePercent * 60));
-    _mint(adrReserve,       (_onePercent * 4));
+    _mint(instanceBetarenaAddresses.adrFoundingTeam,  (_onePercent * 5));
+    _mint(instanceBetarenaAddresses.adrAdvisoryBoard, (_onePercent * 2));
+    _mint(instanceBetarenaAddresses.adrInvestors,     (_onePercent * 4));
+    _mint(instanceBetarenaAddresses.adrTeam,          (_onePercent * 5));
+    _mint(instanceBetarenaAddresses.adrParticipants,  (_onePercent * 10));
+    _mint(instanceBetarenaAddresses.adrMarketing,     (_onePercent * 10));
+    _mint(instanceBetarenaAddresses.adrLiquidity,     (_onePercent * 60));
+    _mint(instanceBetarenaAddresses.adrReserve,       (_onePercent * 4));
 
     // Causes Error:
     // ProviderError: Error: VM Exception while processing transaction: reverted with panic code 0x11 (Arithmetic operation overflowed outside of an unchecked block)
     updateCirculatingSupply();
 
-    mapAddressExcluded[owner()]          = true;
-    mapAddressExcluded[address(this)]    = true;
-    mapAddressExcluded[adrFoundingTeam]  = true;
-    mapAddressExcluded[adrAdvisoryBoard] = true;
-    mapAddressExcluded[adrInvestors]     = true;
-    mapAddressExcluded[adrTeam]          = true;
-    mapAddressExcluded[adrParticipants]  = true;
-    mapAddressExcluded[adrMarketing]     = true;
-    mapAddressExcluded[adrLiquidity]     = true;
-    mapAddressExcluded[adrReserve]       = true;
+    mapAddressExcluded[owner()]                                    = true;
+    mapAddressExcluded[address(this)]                              = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrFoundingTeam]  = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrAdvisoryBoard] = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrInvestors]     = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrTeam]          = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrParticipants]  = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrMarketing]     = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrLiquidity]     = true;
+    mapAddressExcluded[instanceBetarenaAddresses.adrReserve]       = true;
 
-    numBuyFee  = 100;
-    numSellFee = 50;
+    instanceFeeLogic.numBuyFee  = 100;
+    instanceFeeLogic.numSellFee = 50;
+    instanceFeeLogic.buyCondition = 0;
 
     return;
   }
@@ -218,7 +234,7 @@ contract BitarenaToken is
   // #region ➤ 🛠️ METHODS
 
   // ╭──────────────────────────────────────────────────────────────────────────────────╮
-  // │ 💠 │ MISCELLENOUS                                                                │
+  // │ 💠 │ MISCELLENOUS / DEFAULT / IMPORTANT                                          │
   // ╰──────────────────────────────────────────────────────────────────────────────────╯
 
   /// @notice
@@ -230,6 +246,21 @@ contract BitarenaToken is
   ///   📝 [fallback] executed on a call to the contract if none of the other
   ///   |: functions match the given function signature, or if no data is supplied at all
   fallback() external payable {}
+
+  /// @notice
+  ///  📝 returns the balance of the contract
+  /// @return { uint256 }
+  ///   📤 balance of the contract
+  function getETHBalance()
+  external
+  view
+  returns
+  (
+    uint256
+  )
+  {
+    return address(this).balance;
+  }
 
   /// @notice
   ///   📝 withdraws the locked amount of ETH
@@ -244,7 +275,7 @@ contract BitarenaToken is
     (bool success,) = recipient.call{ value: amount }("BTA :: Amount Withdrawn from smart contract");
     if (!success) revert ErrorGeneric (0, "BTA :: Withdraw transfer failed");
     // [🔘]
-    // emit DebugFunctionWithdrawETH(owner(), amount);
+    if (isDebugActive) emit DebugFunctionWithdrawETH(owner(), amount);
     return;
   }
 
@@ -282,7 +313,8 @@ contract BitarenaToken is
     address to,
     uint256 value
   )
-  internal override
+  internal
+  override
   {
     // [🐞]
     // solhint-disable no-console
@@ -294,7 +326,7 @@ contract BitarenaToken is
     // solhint-enable no-console
 
     // [🔘]
-    // emit DebugTransaction(from, to, value, msg.sender);
+    if (isDebugActive) emit DebugTransaction(from, to, msg.sender, tx.origin, value);
 
     // ╭─────
     // │ NOTE: |:| put code to run **BEFORE** the transfer HERE
@@ -309,7 +341,7 @@ contract BitarenaToken is
     // ╭─────
     // │ NOTE: |:| put code to run **AFTER** the transfer HERE
     // ╰─────
-    transferBuySellTakeFees(from, to);
+    transferBuySellTakeFees(from, to, value);
 
     updateCirculatingSupply();
 
@@ -326,10 +358,13 @@ contract BitarenaToken is
   ///   💠 address of the sender
   /// @param recipient { address }
   ///   💠 address of the recipient
+  /// @param amount { uint256 }
+  ///   💠 amount to transfer
   function transferBuySellTakeFees
   (
     address sender,
-    address recipient
+    address recipient,
+    uint256 amount
   )
   internal
   {
@@ -341,23 +376,14 @@ contract BitarenaToken is
     // console.log(unicode"🔹 [var] amount :: %s", amount);
     // solhint-enable no-console
 
-    bool isUniswapV3PoolSender = isUniswapV3Pool(sender);
-    bool isUniswapV3PoolRecipient = isUniswapV3Pool(recipient);
-
     // ╭─────
-    // │ CHECK |: Preliminary check (exit)
+    // │ CHECK |: Preliminary check (w/ exit)
     // ┣─────
-    // │ 1. Check for valid Uniswap V3 Pool
-    // │ 2. Check if address is excluded
-    // │ 3. Check if address is 0x0 (void)
+    // │ 1. Check if address is excluded
+    // │ 2. Check if address is 0x0 (void)
     // ╰─────
     if
     (
-      (
-        !isUniswapV3PoolSender
-        && !isUniswapV3PoolRecipient
-      )
-      ||
       (
         isExcludedAddress(sender)
         || isExcludedAddress(recipient)
@@ -370,7 +396,7 @@ contract BitarenaToken is
     )
     {
       // [🔘]
-      // emit DebugTransactionStandard(sender, recipient, amount);
+      if (isDebugActive) emit DebugTransactionStandard(sender, recipient);
 
       // [🐞]
       // solhint-disable-next-line
@@ -380,39 +406,24 @@ contract BitarenaToken is
     }
 
     // ╭─────
-    // │ CHECK |:
-    // │ Origin Address of UniSwapV3Pool, as only one of the two addresses
-    // │ (sender/recipient) can be a UniswapV3Pool at any given time,
-    // │ wether a buy or sell action is being executed.
-    // ╰─────
-    uint8 originAddressIsUniswapV3 = isUniswapV3PoolSender ? 1 : 0;
-
-    // ╭─────
     // │ CHECK |: Buy-Action
-    // ┣─────
-    // │ 1. 'PancakeV3Pool|UniswapV3Pool' = is 'msg.sender'
-    // │ 2. 'PancakeV3Pool|UniswapV3Pool' = is 'sender/from'
-    // │ 3. 'user'                        = is 'recipient/to'
     // ╰─────
-    if
-    (
-      msg.sender == sender
-      && originAddressIsUniswapV3 == 1
-      // ╭─────
-      // │ NOTE: |:| apply fees only if 'numBuyFee' is set to (not) != 0;
-      // ╰─────
-      && numBuyFee != 0
-    )
+    if (swapDetectType(sender, recipient))
     {
       // [🔘]
-      // emit DebugTransactionBuy(sender, recipient, amount, numBuyFee);
+      if (isDebugActive) emit DebugTransactionBuy(sender, recipient, instanceFeeLogic.numBuyFee);
 
       uint256 buyFeeAmount;
-      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
+      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdtPool);
 
       unchecked
       {
-        buyFeeAmount = calculateBitarenaFee(numBuyFee, priceBtaFor1Usd);
+        buyFeeAmount = calculateBitarenaFee(instanceFeeLogic.numBuyFee, priceBtaFor1Usd);
+        if (buyFeeAmount >= amount)
+        {
+          buyFeeAmount = 0;
+          return;
+        }
       }
 
       // [🐞]
@@ -423,35 +434,28 @@ contract BitarenaToken is
       // │ NOTE:
       // │ ➤ 1XY% of the buyFeeAmount is taken
       // ╰─────
-      super._update(recipient, adrFeeDeposit, buyFeeAmount);
+      super._update(recipient, instanceFeeLogic.adrFeeDeposit, buyFeeAmount);
     }
 
     // ╭─────
     // │ CHECK |: Sell-Action
-    // ┣─────
-    // │ 1. 'Permit2'                     = is 'msg.sender'
-    // │ 2. 'user'                        = is 'sender/from'
-    // │ 3. 'PancakeV3Pool|UniswapV3Pool' = is 'recipient/to'
     // ╰─────
-    if
-    (
-      msg.sender == adrPancakeSwapPermit2
-      && originAddressIsUniswapV3 == 0
-      // ╭─────
-      // │ NOTE: |:| apply fees only if 'numSellFee' is set to (not) != 0;
-      // ╰─────
-      && numSellFee != 0
-    )
+    if (swapDetectType(sender, recipient))
     {
       // [🔘]
-      // emit DebugTransactionSell(sender, recipient, amount, numSellFee);
+      if (isDebugActive) emit DebugTransactionSell(sender, recipient, instanceFeeLogic.numSellFee);
 
       uint256 sellFeeAmount;
-      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(adrBtaUsdtPool);
+      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdtPool);
 
       unchecked
       {
-        sellFeeAmount = calculateBitarenaFee(numSellFee, priceBtaFor1Usd);
+        sellFeeAmount = calculateBitarenaFee(instanceFeeLogic.numSellFee, priceBtaFor1Usd);
+        if (sellFeeAmount >= amount)
+        {
+          sellFeeAmount = 0;
+          return;
+        }
       }
 
       // [🐞]
@@ -462,10 +466,99 @@ contract BitarenaToken is
       // │ NOTE:
       // │ ➤ 1XY% of the sellFeeAmount is taken
       // ╰─────
-      super._update(sender, adrFeeDeposit, sellFeeAmount);
+      super._update(sender, instanceFeeLogic.adrFeeDeposit, sellFeeAmount);
     }
 
     return;
+  }
+
+  /// @notice
+  ///   📝 conditions detection for swap type
+  /// @param sender { address }
+  ///   💠 address of the sender
+  /// @param recipient { address }
+  ///   💠 address of the recipient
+  /// @return { bool }
+  ///   📤 'true' IF swap type is detected
+  function swapDetectType
+  (
+    address sender,
+    address recipient
+  )
+  internal
+  view
+  returns
+  (
+    bool
+  )
+  {
+
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🟩 │ BUY                                                                         │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ CONDTION [1]                                                                     │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ Description                                                                      │
+    // │ :: Post-Swap Detection                                                           │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ 1. 'PancakeV3Pool|UniswapV3Pool' = is 'msg.sender'                               │
+    // │ 2. 'PancakeV3Pool|UniswapV3Pool' = is 'sender/from'                              │
+    // │ 3. 'user'                        = is 'recipient/to'                             │
+    // │ 4. 'user'                        = is 'tx.origin'                                │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ CONDTION [2]                                                                     │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ Description                                                                      │
+    // │ :: Pre-Swap Detection                                                            │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ 1. 'UniversalRouter' = is 'msg.sender'                                           │
+    // │ 2. 'UniversalRouter' = is 'sender/from'                                          │
+    // │ 3. 'user'            = is 'recipient/to'                                         │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+    if
+    (
+      instanceFeeLogic.buyCondition == 0
+      && tx.origin == recipient
+      && msg.sender == instanceFeeLogic.adrUniswapUniversalRouter
+      && sender == instanceFeeLogic.adrUniswapUniversalRouter
+      // ╭─────
+      // │ NOTE: |:| apply fees only if 'numBuyFee' is set to (not) != 0;
+      // ╰─────
+      && instanceFeeLogic.numBuyFee != 0
+    ) return true;
+
+    if
+    (
+      instanceFeeLogic.buyCondition == 1
+      && msg.sender == sender
+      && isUniswapV3Pool(sender)
+      // ╭─────
+      // │ NOTE: |:| apply fees only if 'numBuyFee' is set to (not) != 0;
+      // ╰─────
+      && instanceFeeLogic.numBuyFee != 0
+    ) return true;
+
+    // ╭──────────────────────────────────────────────────────────────────────────────────╮
+    // │ 🟥 │ SELL                                                                        │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ CONDTION [1]                                                                     │
+    // │ 1. 'Permit2'                     = is 'msg.sender'                               │
+    // │ 2. 'user'                        = is 'sender/from'                              │
+    // │ 3. 'PancakeV3Pool|UniswapV3Pool' = is 'recipient/to'                             │
+    // ╰──────────────────────────────────────────────────────────────────────────────────╯
+
+    if
+    (
+      msg.sender == instanceFeeLogic.adrUniswapPermit2
+      && !isUniswapV3Pool(sender)
+      // ╭─────
+      // │ NOTE: |:| apply fees only if 'numSellFee' is set to (not) != 0;
+      // ╰─────
+      && instanceFeeLogic.numSellFee != 0
+    ) return true;
+
+    return false;
   }
 
   /// @notice
@@ -473,8 +566,12 @@ contract BitarenaToken is
   /// @return { uint256 }
   ///   📤 1% of total (initial) supply
   function calcOnePercentOfTotalSupply()
-  private view
-  returns (uint256)
+  private
+  view
+  returns
+  (
+    uint256
+  )
   {
     return (SUPPLY_TOTAL * 10**decimals()) * 1 / 100;
   }
@@ -503,20 +600,20 @@ contract BitarenaToken is
     // ╭─────
     // │ CHECK: |:| for same wallet address (used in testing)
     // ╰─────
-    if (adrFoundingTeam == adrAdvisoryBoard)
+    if (instanceBetarenaAddresses.adrFoundingTeam == instanceBetarenaAddresses.adrAdvisoryBoard)
     {
-      numNonCirculatingSupply = balanceOf(adrFoundingTeam);
+      numNonCirculatingSupply = balanceOf(instanceBetarenaAddresses.adrFoundingTeam);
     }
     else
     {
-      numNonCirculatingSupply = balanceOf(adrFoundingTeam);
-      numNonCirculatingSupply += balanceOf(adrAdvisoryBoard);
-      numNonCirculatingSupply += balanceOf(adrInvestors);
-      numNonCirculatingSupply += balanceOf(adrTeam);
-      numNonCirculatingSupply += balanceOf(adrParticipants);
-      numNonCirculatingSupply += balanceOf(adrMarketing);
-      numNonCirculatingSupply += balanceOf(adrLiquidity);
-      numNonCirculatingSupply += balanceOf(adrReserve);
+      numNonCirculatingSupply = balanceOf(instanceBetarenaAddresses.adrFoundingTeam);
+      numNonCirculatingSupply += balanceOf(instanceBetarenaAddresses.adrAdvisoryBoard);
+      numNonCirculatingSupply += balanceOf(instanceBetarenaAddresses.adrInvestors);
+      numNonCirculatingSupply += balanceOf(instanceBetarenaAddresses.adrTeam);
+      numNonCirculatingSupply += balanceOf(instanceBetarenaAddresses.adrParticipants);
+      numNonCirculatingSupply += balanceOf(instanceBetarenaAddresses.adrMarketing);
+      numNonCirculatingSupply += balanceOf(instanceBetarenaAddresses.adrLiquidity);
+      numNonCirculatingSupply += balanceOf(instanceBetarenaAddresses.adrReserve);
     }
 
     if (numTotalSupply < numNonCirculatingSupply)
@@ -547,8 +644,12 @@ contract BitarenaToken is
   (
     address account
   )
-  public view
-  returns (bool)
+  public
+  view
+  returns
+  (
+    bool
+  )
   {
     return mapAddressExcluded[account];
   }
@@ -564,7 +665,10 @@ contract BitarenaToken is
     address account
   )
   public view
-  returns (bool)
+  returns
+  (
+    bool
+  )
   {
     return mapAddressV3Pool[account];
   }
@@ -591,7 +695,7 @@ contract BitarenaToken is
     address token1 = IUniswapV3Pool(_adrBtaUsdtPool).token1();
 
     // [🔘]
-    // emit DebugSwapSnapshot(sqrtPriceX96);
+    if (isDebugActive) emit DebugSwapSnapshot(sqrtPriceX96);
 
     uint256 sqrtPriceX96Pow = 0;
 
@@ -632,7 +736,8 @@ contract BitarenaToken is
     uint256 fee,
     uint256 price
   )
-  public pure
+  public
+  pure
   returns
   (
     uint256
@@ -665,6 +770,40 @@ contract BitarenaToken is
 
   /// @notice
   ///  📝 SET |: address for new UniswapV3Pool created
+  /// @param _adrUniswapPermit2 { address }
+  ///   💠 address of UniswapPermit2
+  /// @param _adrUniswapUniversalRouter { address }
+  ///   💠 address of UiswapUniversalRouter
+  function setUniswapAddresses
+  (
+    address _adrUniswapPermit2,
+    address _adrUniswapUniversalRouter
+  )
+  external
+  onlyOwner
+  {
+    instanceFeeLogic.adrUniswapPermit2 = _adrUniswapPermit2;
+    instanceFeeLogic.adrUniswapUniversalRouter = _adrUniswapUniversalRouter;
+    return;
+  }
+
+  /// @notice
+  ///  📝 SET |: buy condition
+  /// @param condition { uint256 }
+  ///   💠 condition to set
+  function setBuyCondition
+  (
+    uint256 condition
+  )
+  external
+  onlyOwner
+  {
+    instanceFeeLogic.buyCondition = condition;
+    return;
+  }
+
+  /// @notice
+  ///  📝 SET |: address for new UniswapV3Pool created
   /// @param account { address }
   ///   💠 address of the Uniswap V3 Pool Created
   function setUniswapV3Pool
@@ -689,39 +828,44 @@ contract BitarenaToken is
   external
   onlyOwner
   {
-    adrBtaUsdtPool = account;
+    mapAddressV3Pool[account] = true;
+    instanceFeeLogic.adrBtaUsdtPool = account;
     return;
   }
 
   /// @notice
-  ///  📝 SET |: buy fee
+  ///  📝 SET |: DEX custom transaction swap fee
   /// @param fee { uint256 }
   ///   💠 buy fee expressed as USD (fiat)
-  function setBuyFee
+  function setSwapFees
   (
-    uint256 fee
+    uint256 fee,
+    string memory feeType
   )
   external
   onlyOwner
   {
-    if (fee < 0 || fee > 250) revert ErrorGeneric(fee, "BTA :: buy fee cannot be lower than 0 or higher than 2.5 USD (=250)");
-    numBuyFee = fee;
+    if (fee < 0 || fee > 250)
+      revert ErrorGeneric(fee, "BTA :: fee cannot be lower than 0 or higher than 2.5 USD (=250)");
+    if (feeType.equal("buy"))
+      instanceFeeLogic.numBuyFee = fee;
+    else if (feeType.equal("sell"))
+      instanceFeeLogic.numSellFee = fee;
     return;
   }
 
   /// @notice
-  ///  📝 SET |: sell fee
-  /// @param fee { uint256 }
-  ///   💠 sell fee expressed as USD (fiat)
-  function setSellFee
+  ///  📝 SET |: Debugging flag
+  /// @param _isDebugActive { bool }
+  ///   💠 flag to set
+  function setDebugging
   (
-    uint256 fee
+    bool _isDebugActive
   )
   external
   onlyOwner
   {
-    if (fee < 0 || fee > 250) revert ErrorGeneric(fee, "BTA :: sell fee cannot be lower than 0 or higher than 2.5 USD (=250)");
-    numSellFee = fee;
+    isDebugActive = _isDebugActive;
     return;
   }
 
