@@ -62,16 +62,22 @@ contract BitarenaToken is
   // #region ➤ 📌 VARIABLES
 
   /// @notice
-  ///   📝 ERC-20 Token initial supply
+  ///   📝 Token initial supply
   uint256 public constant SUPPLY_TOTAL = 21000000;
   /// @notice
-  ///   📝 Circulating Supply of BTA Token
+  ///   📝 Current circulating supply BTA Token
   uint256 public numCirculatingSupply;
   /// @notice
-  ///   📝 Mapping of Official Bitarena Addresses that are Excluded from Fee
-  mapping (address addressExcluded => bool isExcluded) private mapAddressExcluded;
+  ///   📝 Mapping for, general addresses that should not have imposed transaction fees.
+  mapping (address addressGeneralExcluded => bool isExcluded) private mapAddressExcluded;
   /// @notice
-  ///   📝 Mapping of Official Bitarena Addresses of (V3) Liquidity Pools
+  ///   📝 Mapping for, swap-related UniswapV3Pool (addresss) involved in BUY action logic.
+  mapping (address addressUniswapV3Excluded => bool isExcludedForBuy) private mapAdrExcludedForBuy;
+  /// @notice
+  ///   📝 Mapping for, swap-related UniswapV3Pool (addresss) involved in SELL action logic.
+  mapping (address addressUniswapV3Excluded => bool isExcludedForSell) private mapAdrExcludedForSell;
+  /// @notice
+  ///   📝 Mapping ofor, Bitarena Token addresses of (UniswapV3) liquidity pools.
   mapping (address addressV3Pool => bool isPool) private mapAddressV3Pool;
   /// @notice
   ///   📝 Keeping track of current SwapContext
@@ -392,14 +398,14 @@ contract BitarenaToken is
     // ╭─────
     // │ CHECK |: Preliminary check (w/ exit)
     // ┣─────
-    // │ 1. Check if address is excluded
-    // │ 2. Check if address is 0x0 (void)
+    // │ 1. Check if address is excluded from general fee
+    // │ 2. Check if address is 0x0 (a void)
     // ╰─────
     if
     (
       (
-        isExcludedAddress(sender)
-        || isExcludedAddress(recipient)
+        mapAddressExcluded[sender]
+        || mapAddressExcluded[recipient]
       )
       ||
       (
@@ -455,7 +461,7 @@ contract BitarenaToken is
       unchecked
       {
         sellFeeAmount = calculateBitarenaFee(instanceFeeLogic.numSellFee, priceBtaFor1Usd);
-        if (sellFeeAmount >= amount)
+        if (amount + sellFeeAmount >= balanceOf(sender))
         {
           sellFeeAmount = 0;
           return;
@@ -499,17 +505,18 @@ contract BitarenaToken is
     // │ 🟩 │ BUY                                                                         │
     // ┣──────────────────────────────────────────────────────────────────────────────────┫
     // │ CONDTION [0]                                                                     │
-    // │ Description                                                                      │
-    // │ :: Pre-Swap Detection                                                            │
+    // │  Description                                                                     │
+    // │  :: Pre-Swap Detection                                                           │
     // ┣──────────────────────────────────────────────────────────────────────────────────┫
     // │ 1. 'UniversalRouter' = is 'msg.sender'                                           │
     // │ 2. 'UniversalRouter' = is 'sender/from'                                          │
     // │ 3. 'user'            = is 'recipient/to'                                         │
     // ┣──────────────────────────────────────────────────────────────────────────────────┫
     // │ CONDTION [1]                                                                     │
-    // │ Description                                                                      │
-    // │ :: Post-Swap Detection                                                           │
-    // │ :: Typically combined with CONDTION [0]                                          │
+    // │  Description                                                                     │
+    // │  :: Post-Swap Detection                                                          │
+    // │  :: Typically combined with CONDTION [0], but can be a standalone                │
+    // │  :: **WORKING** condition                                                        │
     // ┣──────────────────────────────────────────────────────────────────────────────────┫
     // │ 1. 'PancakeV3Pool|UniswapV3Pool' = is 'msg.sender'                               │
     // │ 2. 'PancakeV3Pool|UniswapV3Pool' = is 'sender/from'                              │
@@ -556,7 +563,7 @@ contract BitarenaToken is
         && msg.sender == instanceFeeLogic.adrUniswapUniversalRouter
         && sender == instanceFeeLogic.adrUniswapUniversalRouter
         && mapSwapContext[tx.origin][mapBuyKey] != address(0)
-        && !isExcludedAddress(mapSwapContext[tx.origin][mapBuyKey])
+        && !mapAdrExcludedForBuy[(mapSwapContext[tx.origin][mapBuyKey])]
       )
       {
         // [🔘]
@@ -584,6 +591,7 @@ contract BitarenaToken is
       && instanceFeeLogic.numSellFee != 0
       && msg.sender == instanceFeeLogic.adrUniswapPermit2
       && !isUniswapV3Pool(sender)
+      && !mapAdrExcludedForSell[recipient]
     ) return true;
 
     return false;
@@ -663,23 +671,24 @@ contract BitarenaToken is
   }
 
   /// @notice
-  ///   📝 checks if address is excluded
+  ///   📝 checks if address is excluded from (1) general fee, (2) buy fee, (3) sell fee
   /// @param account { address }
   ///   💠 address to check
-  /// @return { bool }
+  /// @return { bool, bool, bool }
   ///   📤 'true' IF address is excluded from fee
   function isExcludedAddress
   (
     address account
   )
-  public
-  view
+  external
   returns
   (
+    bool,
+    bool,
     bool
   )
   {
-    return mapAddressExcluded[account];
+    return (mapAddressExcluded[account], mapAdrExcludedForBuy[account], mapAdrExludedForSell[account]);
   }
 
   /// @notice
@@ -785,25 +794,33 @@ contract BitarenaToken is
   ///   💠 address of the account to exclude
   /// @param isExcluded { bool }
   ///   💠 'true' to exclude, 'false' to include
+  /// @param exclusionType { string }
+  ///   💠 type of exclusion (buy/sell/general)
   function setToggleExcludeAddressFromFee
   (
     address account,
-    bool isExcluded
+    bool isExcluded,
+    string memory exclusionType
   )
   external
   onlyOwner
   {
-    mapAddressExcluded[account] = isExcluded;
+    if (exclusionType.equal("sell"))
+      mapAdrExcludedForSell[account] = isExcluded;
+    else if (exclusionType.equal("buy"))
+      mapAdrExcludedForBuy[account] = isExcluded;
+    else if (exclusionType.equal("general"))
+      mapAddressExcluded[account] = isExcluded;
     return;
   }
 
   /// @notice
-  ///  📝 SET |: address for new UniswapV3Pool created
+  ///  📝 SET |: address for official Uniswap deployment smart contracts.
   /// @param _adrUniswapPermit2 { address }
   ///   💠 address of UniswapPermit2
   /// @param _adrUniswapUniversalRouter { address }
   ///   💠 address of UiswapUniversalRouter
-  function setUniswapAddresses
+  function setUniswapOfficialAddress
   (
     address _adrUniswapPermit2,
     address _adrUniswapUniversalRouter
