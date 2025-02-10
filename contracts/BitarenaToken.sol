@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Compatible with OpenZeppelin Contracts ^5.0.0
 
-// https://github.com/OpenZeppelin/openzeppelin-contracts/issues/2580
-// https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json
+// ╭─────
+// │ NOTE:
+// │ |: https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json
+// │ |: https://github.com/OpenZeppelin/openzeppelin-contracts/issues/2580
+// ╰─────
 pragma solidity 0.8.24;
 
 // #region ➤ 📦 Package Imports
@@ -71,8 +74,13 @@ contract BitarenaToken is
   ///   📝 Mapping of Official Bitarena Addresses of (V3) Liquidity Pools
   mapping (address addressV3Pool => bool isPool) private mapAddressV3Pool;
   /// @notice
+  ///   📝 Keeping track of current SwapContext
+  ///   |: Example:
+  ///   |: {tx.origin} -> "{block.number}_{block.timestamp}_{tx.gas}" -> "uniswapV3PoolAddress"
+  mapping (address adrTxOrigin => mapping (string strTxMetadata => address adrV3Pool)) private mapSwapContext;
+  /// @notice
   ///   📝 Debugging flag
-  bool private isDebugActive = true;
+  bool public isDebugActive = true;
 
   struct IBetarenaAddresses
   {
@@ -120,25 +128,33 @@ contract BitarenaToken is
 
   /// @notice
   ///   📝 Debugging event for WithdrawETH
-  event DebugFunctionWithdrawETH  (address indexed sender, uint256 amount);
+  event DebugFunctionWithdrawETH       (address indexed sender, uint256 amount);
   /// @notice
   ///   📝 Debugging event for Transaction
-  event DebugTransaction          (address sender, address recipient, address msgSender, address txOrigin, uint256 amount);
+  event DebugTransaction               (address sender, address recipient, uint256 amount);
+  /// @notice
+  ///   📝 Debugging Global Variable Context - Block
+  event DebugGlobalContextBlock        (uint blockNumber, uint blockTimestamp, uint blockChainid);
+  /// @notice
+  ///   📝 Debugging Global Variable Context - Block
+  event DebugGlobalContextMsgAndTx     (bytes msgData, address msgSender, uint msgValue, address txOrigin, uint txGasPrice, address msgSenderOz, bytes msgDataOz);
   /// @notice
   ///   📝 Debugging event for Transaction (Standard)
-  event DebugTransactionStandard  (address indexed sender, address indexed recipient);
+  event DebugTransactionStandard       (address sender, address recipient);
   /// @notice
-  ///   📝 Debugging event for Transaction (Buy)
-  event DebugTransactionBuy       (address indexed sender, address indexed recipient, uint256 buyFeeAmount);
-  /// @notice
-  ///   📝 Debugging event for Transaction (Sell)
-  event DebugTransactionSell      (address indexed sender, address indexed recipient, uint256 sellFeeAmount);
+  ///   📝 Debugging event for Transaction Swap (Buy/Sell)
+  event DebugTransactionSwap           (address sender, address recipient, uint256 feeAmount, string swapType);
   /// @notice
   ///   📝 Debugging event for Swap Snapshot
-  event DebugSwapSnapshot         (uint160 sqrtPriceX96);
+  event DebugSwapSnapshot              (uint160 sqrtPriceX96);
+  /// @notice
+  ///   📝 Debugging event for Transaction (Buy)
+  event DebugTransactionSwapCheckpoint (string message);
+
+
   /// @notice
   ///   📝 Error event for Generic Error
-  error ErrorGeneric              (uint256 value, string message);
+  error ErrorGeneric               (uint256 value, string message);
 
   // #endregion ➤ 📣 EVENTS
 
@@ -326,7 +342,12 @@ contract BitarenaToken is
     // solhint-enable no-console
 
     // [🔘]
-    if (isDebugActive) emit DebugTransaction(from, to, msg.sender, tx.origin, value);
+    if (isDebugActive)
+    {
+      emit DebugTransaction(from, to, value);
+      emit DebugGlobalContextBlock(block.number, block.timestamp, block.chainid);
+      emit DebugGlobalContextMsgAndTx(msg.data, msg.sender, msg.value, tx.origin, tx.gasprice, _msgSender(), _msgData());
+    }
 
     // ╭─────
     // │ NOTE: |:| put code to run **BEFORE** the transfer HERE
@@ -368,14 +389,6 @@ contract BitarenaToken is
   )
   internal
   {
-    // [🐞]
-    // solhint-disable no-console
-    // console.log(unicode"🚏 [checkpoint] :: transferBuySellTakeFees(..)");
-    // console.log(unicode"🔹 [var] sender :: %s", sender);
-    // console.log(unicode"🔹 [var] recipient :: %s", recipient);
-    // console.log(unicode"🔹 [var] amount :: %s", amount);
-    // solhint-enable no-console
-
     // ╭─────
     // │ CHECK |: Preliminary check (w/ exit)
     // ┣─────
@@ -397,21 +410,16 @@ contract BitarenaToken is
     {
       // [🔘]
       if (isDebugActive) emit DebugTransactionStandard(sender, recipient);
-
-      // [🐞]
-      // solhint-disable-next-line
-      // console.log(unicode"🚏 [checkpoint] :: Not Valid Fee Transaction Deduction");
-
       return;
     }
 
     // ╭─────
-    // │ CHECK |: Buy-Action
+    // │ CHECK |: Buy-Action & Fee Gathering
     // ╰─────
-    if (swapDetectType(sender, recipient))
+    if (swapDetectType(sender, recipient, "buy"))
     {
       // [🔘]
-      if (isDebugActive) emit DebugTransactionBuy(sender, recipient, instanceFeeLogic.numBuyFee);
+      if (isDebugActive) emit DebugTransactionSwap(sender, recipient, instanceFeeLogic.numBuyFee, "buy");
 
       uint256 buyFeeAmount;
       uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdtPool);
@@ -426,10 +434,6 @@ contract BitarenaToken is
         }
       }
 
-      // [🐞]
-      // solhint-disable-next-line
-      // console.log(unicode"🚏 [checkpoint] :: Buy Executed");
-
       // ╭─────
       // │ NOTE:
       // │ ➤ 1XY% of the buyFeeAmount is taken
@@ -438,12 +442,12 @@ contract BitarenaToken is
     }
 
     // ╭─────
-    // │ CHECK |: Sell-Action
+    // │ CHECK |: Sell-Action & Fee Gathering
     // ╰─────
-    if (swapDetectType(sender, recipient))
+    if (swapDetectType(sender, recipient, "sell"))
     {
       // [🔘]
-      if (isDebugActive) emit DebugTransactionSell(sender, recipient, instanceFeeLogic.numSellFee);
+      if (isDebugActive) emit DebugTransactionSwap(sender, recipient, instanceFeeLogic.numSellFee, "sell");
 
       uint256 sellFeeAmount;
       uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdtPool);
@@ -457,10 +461,6 @@ contract BitarenaToken is
           return;
         }
       }
-
-      // [🐞]
-      // solhint-disable-next-line
-      // console.log(unicode"🚏 [checkpoint] :: Sell Executed");
 
       // ╭─────
       // │ NOTE:
@@ -478,15 +478,17 @@ contract BitarenaToken is
   ///   💠 address of the sender
   /// @param recipient { address }
   ///   💠 address of the recipient
+  /// @param swapType { string }
+  ///   💠 type of swap (buy/sell)
   /// @return { bool }
   ///   📤 'true' IF swap type is detected
   function swapDetectType
   (
     address sender,
-    address recipient
+    address recipient,
+    string memory swapType
   )
   internal
-  view
   returns
   (
     bool
@@ -496,48 +498,76 @@ contract BitarenaToken is
     // ╭──────────────────────────────────────────────────────────────────────────────────╮
     // │ 🟩 │ BUY                                                                         │
     // ┣──────────────────────────────────────────────────────────────────────────────────┫
-    // │ CONDTION [1]                                                                     │
-    // ┣──────────────────────────────────────────────────────────────────────────────────┫
-    // │ Description                                                                      │
-    // │ :: Post-Swap Detection                                                           │
-    // ┣──────────────────────────────────────────────────────────────────────────────────┫
-    // │ 1. 'PancakeV3Pool|UniswapV3Pool' = is 'msg.sender'                               │
-    // │ 2. 'PancakeV3Pool|UniswapV3Pool' = is 'sender/from'                              │
-    // │ 3. 'user'                        = is 'recipient/to'                             │
-    // │ 4. 'user'                        = is 'tx.origin'                                │
-    // ┣──────────────────────────────────────────────────────────────────────────────────┫
-    // │ CONDTION [2]                                                                     │
-    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ CONDTION [0]                                                                     │
     // │ Description                                                                      │
     // │ :: Pre-Swap Detection                                                            │
     // ┣──────────────────────────────────────────────────────────────────────────────────┫
     // │ 1. 'UniversalRouter' = is 'msg.sender'                                           │
     // │ 2. 'UniversalRouter' = is 'sender/from'                                          │
     // │ 3. 'user'            = is 'recipient/to'                                         │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ CONDTION [1]                                                                     │
+    // │ Description                                                                      │
+    // │ :: Post-Swap Detection                                                           │
+    // │ :: Typically combined with CONDTION [0]                                          │
+    // ┣──────────────────────────────────────────────────────────────────────────────────┫
+    // │ 1. 'PancakeV3Pool|UniswapV3Pool' = is 'msg.sender'                               │
+    // │ 2. 'PancakeV3Pool|UniswapV3Pool' = is 'sender/from'                              │
+    // │ 3. 'user'                        = is 'recipient/to'                             │
+    // │ 4. 'user'                        = is 'tx.origin'                                │
     // ╰──────────────────────────────────────────────────────────────────────────────────╯
 
     if
     (
-      instanceFeeLogic.buyCondition == 0
-      && tx.origin == recipient
-      && msg.sender == instanceFeeLogic.adrUniswapUniversalRouter
-      && sender == instanceFeeLogic.adrUniswapUniversalRouter
-      // ╭─────
-      // │ NOTE: |:| apply fees only if 'numBuyFee' is set to (not) != 0;
-      // ╰─────
+      swapType.equal("buy")
       && instanceFeeLogic.numBuyFee != 0
-    ) return true;
+      && instanceFeeLogic.buyCondition == 0
+    )
+    {
+      string memory mapBuyKey = string.concat(Strings.toString(block.number), "_", Strings.toString(block.timestamp), "_", Strings.toString(tx.gasprice));
 
-    if
-    (
-      instanceFeeLogic.buyCondition == 1
-      && msg.sender == sender
-      && isUniswapV3Pool(sender)
+      // [🔘]
+      if (isDebugActive) emit DebugTransactionSwapCheckpoint(mapBuyKey);
+
       // ╭─────
-      // │ NOTE: |:| apply fees only if 'numBuyFee' is set to (not) != 0;
+      // │ NOTE:
+      // │ |: Validating the (pre-swap) 'Buy' condition
       // ╰─────
-      && instanceFeeLogic.numBuyFee != 0
-    ) return true;
+      if
+      (
+        msg.sender == sender
+        && isUniswapV3Pool(sender)
+        && mapSwapContext[tx.origin][mapBuyKey] == address(0)
+      )
+      {
+        // [🔘]
+        if (isDebugActive) emit DebugTransactionSwapCheckpoint("[checkpoint] :: Buy Condition [Step-0]");
+
+        mapSwapContext[tx.origin][mapBuyKey] = sender;
+        return false;
+      }
+      // ╭─────
+      // │ NOTE:
+      // │ |: Validating the (post-swap) 'Buy' condition
+      // ╰─────
+      else if
+      (
+        tx.origin == recipient
+        && msg.sender == instanceFeeLogic.adrUniswapUniversalRouter
+        && sender == instanceFeeLogic.adrUniswapUniversalRouter
+        && mapSwapContext[tx.origin][mapBuyKey] != address(0)
+        && !isExcludedAddress(mapSwapContext[tx.origin][mapBuyKey])
+      )
+      {
+        // [🔘]
+        if (isDebugActive) emit DebugTransactionSwapCheckpoint("[checkpoint] :: Buy Condition [Step-1]");
+
+        delete mapSwapContext[tx.origin][mapBuyKey];
+        return true;
+      }
+
+      return false;
+    }
 
     // ╭──────────────────────────────────────────────────────────────────────────────────╮
     // │ 🟥 │ SELL                                                                        │
@@ -550,12 +580,10 @@ contract BitarenaToken is
 
     if
     (
-      msg.sender == instanceFeeLogic.adrUniswapPermit2
-      && !isUniswapV3Pool(sender)
-      // ╭─────
-      // │ NOTE: |:| apply fees only if 'numSellFee' is set to (not) != 0;
-      // ╰─────
+      swapType.equal("sell")
       && instanceFeeLogic.numSellFee != 0
+      && msg.sender == instanceFeeLogic.adrUniswapPermit2
+      && !isUniswapV3Pool(sender)
     ) return true;
 
     return false;
@@ -664,7 +692,8 @@ contract BitarenaToken is
   (
     address account
   )
-  public view
+  public
+  view
   returns
   (
     bool
