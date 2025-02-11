@@ -106,8 +106,18 @@ export function identifyEnvironment
        */
       production:
       {
-        name: 'BitarenaDev',
-        symbol: 'BTAD',
+        // ╭─────
+        // │ NOTE:
+        // │ |: [production-official] - 'Bitarena'
+        // │ |: [production-staging]  - 'BitarenaDev'
+        // ╰─────
+        name: 'Bitarena',
+        // ╭─────
+        // │ NOTE:
+        // │ |: [production-official] - 'BTA'
+        // │ |: [production-staging]  - 'BTAD'
+        // ╰─────
+        symbol: 'BTA',
         addressFee: '0x4A60e8B372ba9Ea596b03c6a0c43bf46A55Ce26C',
         listAddressTeam:
         [

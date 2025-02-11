@@ -113,7 +113,7 @@ contract BitarenaToken is
     address adrFeeDeposit;
     /// @notice
     ///   📝 Main BTA liquidity address (usdt/usdc; a.k.a fiat price)
-    address adrBtaUsdtPool;
+    address adrBtaUsdPool;
     /// @notice
     ///   📝 Buy Fee, expressed in dollars ($) as 0.0 (to 1 d.p)
     uint256 numBuyFee;
@@ -121,7 +121,8 @@ contract BitarenaToken is
     ///   📝 Sell Fee, expressed in dollars ($) as 0.0 (ro 1 d.p)
     uint256 numSellFee;
     /// @notice
-    ///   📝 Target 'Buy' condition to be used in swap action identification
+    ///   📝 Target 'Buy' condition to be used in swap action identification.
+    ///      Giving ability to test out alternative 'Buy' conditions dynamically on a live contract
     uint256 buyCondition;
   }
 
@@ -428,7 +429,7 @@ contract BitarenaToken is
       if (isDebugActive) emit DebugTransactionSwap(sender, recipient, instanceFeeLogic.numBuyFee, "buy");
 
       uint256 buyFeeAmount;
-      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdtPool);
+      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdPool);
 
       unchecked
       {
@@ -456,7 +457,7 @@ contract BitarenaToken is
       if (isDebugActive) emit DebugTransactionSwap(sender, recipient, instanceFeeLogic.numSellFee, "sell");
 
       uint256 sellFeeAmount;
-      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdtPool);
+      uint256 priceBtaFor1Usd = calculateBitarenaPriceInStableCoinV2(instanceFeeLogic.adrBtaUsdPool);
 
       unchecked
       {
@@ -681,6 +682,7 @@ contract BitarenaToken is
     address account
   )
   external
+  view
   returns
   (
     bool,
@@ -688,7 +690,7 @@ contract BitarenaToken is
     bool
   )
   {
-    return (mapAddressExcluded[account], mapAdrExcludedForBuy[account], mapAdrExludedForSell[account]);
+    return (mapAddressExcluded[account], mapAdrExcludedForBuy[account], mapAdrExcludedForSell[account]);
   }
 
   /// @notice
@@ -875,7 +877,7 @@ contract BitarenaToken is
   onlyOwner
   {
     mapAddressV3Pool[account] = true;
-    instanceFeeLogic.adrBtaUsdtPool = account;
+    instanceFeeLogic.adrBtaUsdPool = account;
     return;
   }
 
