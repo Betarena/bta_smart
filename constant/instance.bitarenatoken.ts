@@ -202,9 +202,10 @@ export function identifyEnvironment
           addressPermit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
           // ╭─────
           // │ NOTE:
-          // │ |: UniversalRouter :: 0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2
+          // │ |: UniversalRouter :: 0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2 [?] (possibly deprecated)
+          // │ |: UniversalRouter :: 0x1095692A6237d83C6a72F3F5eFEdb9A670C49223 [?] (possibly newest)
           // ╰─────
-          addressUniversalRouter: '0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2'
+          addressUniversalRouter: '0x1095692A6237d83C6a72F3F5eFEdb9A670C49223'
         },
         amony:
         {

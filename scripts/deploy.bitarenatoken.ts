@@ -29,7 +29,7 @@ const
    * @description
    * 📝 debug file.
    */
-  debugFile = './logs/deployment.bitarena.json5'
+  debugFile = './logs/deployment.bitarena.json'
 ;
 
 /**
